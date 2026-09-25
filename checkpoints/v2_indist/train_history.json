@@ -1,0 +1,91 @@
+{
+  "sft_best": {
+    "acc": 0.9992,
+    "epoch": 3,
+    "tag": "sft"
+  },
+  "dagger": [
+    {
+      "round": 0,
+      "beta": 0.5,
+      "rollout": {
+        "L1": {
+          "episodes": 400,
+          "success": 1.0,
+          "clean_success": 1.0,
+          "mean_iou": 1.0,
+          "on_policy_agreement": 1.0,
+          "steps_over_expert": 1.0,
+          "outcomes": {
+            "success": 400
+          }
+        },
+        "L2": {
+          "episodes": 400,
+          "success": 1.0,
+          "clean_success": 1.0,
+          "mean_iou": 1.0,
+          "on_policy_agreement": 1.0,
+          "steps_over_expert": 1.0,
+          "outcomes": {
+            "success": 400
+          }
+        },
+        "L3": {
+          "episodes": 400,
+          "success": 1.0,
+          "clean_success": 1.0,
+          "mean_iou": 1.0,
+          "on_policy_agreement": 1.0,
+          "steps_over_expert": 1.0,
+          "outcomes": {
+            "success": 400
+          }
+        },
+        "overall_success": 1.0
+      },
+      "added": 20548
+    },
+    {
+      "round": 1,
+      "beta": 0.25,
+      "rollout": {
+        "L1": {
+          "episodes": 400,
+          "success": 1.0,
+          "clean_success": 1.0,
+          "mean_iou": 1.0,
+          "on_policy_agreement": 1.0,
+          "steps_over_expert": 1.0,
+          "outcomes": {
+            "success": 400
+          }
+        },
+        "L2": {
+          "episodes": 400,
+          "success": 1.0,
+          "clean_success": 1.0,
+          "mean_iou": 1.0,
+          "on_policy_agreement": 1.0,
+          "steps_over_expert": 1.0,
+          "outcomes": {
+            "success": 400
+          }
+        },
+        "L3": {
+          "episodes": 400,
+          "success": 1.0,
+          "clean_success": 1.0,
+          "mean_iou": 1.0,
+          "on_policy_agreement": 1.0,
+          "steps_over_expert": 1.0,
+          "outcomes": {
+            "success": 400
+          }
+        },
+        "overall_success": 1.0
+      },
+      "added": 20493
+    }
+  ]
+}

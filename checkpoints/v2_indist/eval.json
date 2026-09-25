@@ -1,0 +1,138 @@
+{
+  "per_step": {
+    "acc": 0.9998,
+    "nll": 0.0006,
+    "n": 73894,
+    "by_level": {
+      "1": {
+        "acc": 0.9997,
+        "n": 6715
+      },
+      "2": {
+        "acc": 0.9998,
+        "n": 18817
+      },
+      "3": {
+        "acc": 0.9998,
+        "n": 48362
+      }
+    },
+    "by_category": {
+      "additive": {
+        "acc": 1.0,
+        "n": 4583
+      },
+      "body": {
+        "acc": 1.0,
+        "n": 2979
+      },
+      "dressup": {
+        "acc": 1.0,
+        "n": 1581
+      },
+      "pattern": {
+        "acc": 1.0,
+        "n": 1617
+      },
+      "select": {
+        "acc": 1.0,
+        "n": 10983
+      },
+      "sketch": {
+        "acc": 1.0,
+        "n": 7094
+      },
+      "sketch_constraint": {
+        "acc": 0.9994,
+        "n": 17374
+      },
+      "sketch_geometry": {
+        "acc": 1.0,
+        "n": 6904
+      },
+      "sketch_misc": {
+        "acc": 1.0,
+        "n": 7041
+      },
+      "std": {
+        "acc": 1.0,
+        "n": 1184
+      },
+      "subtractive": {
+        "acc": 1.0,
+        "n": 2443
+      },
+      "terminal": {
+        "acc": 1.0,
+        "n": 3464
+      },
+      "undo": {
+        "acc": 0.9993,
+        "n": 4173
+      },
+      "workbench": {
+        "acc": 1.0,
+        "n": 2474
+      }
+    },
+    "by_noise": {
+      "clean": {
+        "acc": 1.0,
+        "n": 24354
+      },
+      "noisy": {
+        "acc": 0.9997,
+        "n": 49540
+      }
+    }
+  },
+  "episodes": {
+    "L1": {
+      "episodes": 100,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 100
+      }
+    },
+    "L2": {
+      "episodes": 100,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 100
+      }
+    },
+    "L3": {
+      "episodes": 100,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 100
+      }
+    },
+    "L4": {
+      "episodes": 100,
+      "success": 0.08,
+      "clean_success": 0.0,
+      "mean_iou": 0.9597,
+      "on_policy_agreement": 0.7376,
+      "steps_over_expert": 0.912,
+      "outcomes": {
+        "budget": 78,
+        "wrong_geometry": 14,
+        "success": 8
+      }
+    },
+    "overall_success": 0.77
+  }
+}

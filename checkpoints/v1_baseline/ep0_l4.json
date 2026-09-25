@@ -1,0 +1,18 @@
+{
+  "episodes": {
+    "L4": {
+      "episodes": 48,
+      "success": 0.0625,
+      "clean_success": 0.0,
+      "mean_iou": 0.9407,
+      "on_policy_agreement": 0.8413,
+      "steps_over_expert": 0.76,
+      "outcomes": {
+        "budget": 8,
+        "wrong_geometry": 37,
+        "success": 3
+      }
+    },
+    "overall_success": 0.0625
+  }
+}

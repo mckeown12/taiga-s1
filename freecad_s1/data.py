@@ -1,0 +1,95 @@
+"""Load datagen shards into featurized examples (cached per shard)."""
+
+from __future__ import annotations
+
+import gzip
+import json
+import pickle
+from concurrent.futures import ProcessPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import numpy as np
+
+from .actions import CATALOGUE
+from .model.featurize import Example, make_example
+from .schema import Goal, State
+
+CACHE_VERSION = 2
+
+
+def label_category(acceptable: list[str]) -> str:
+    a = acceptable[0]
+    if a == "Std_Undo":
+        return "undo"
+    if a.startswith("Select:"):
+        return "select"
+    return CATALOGUE[a].category if a in CATALOGUE else "other"
+
+
+@dataclass
+class Dataset:
+    examples: list[Example] = field(default_factory=list)
+    ep: list[str] = field(default_factory=list)
+    level: list[int] = field(default_factory=list)
+    noise: list[float] = field(default_factory=list)
+    category: list[str] = field(default_factory=list)
+
+    def __len__(self) -> int:
+        return len(self.examples)
+
+    def add(self, ex: Example, ep: str, level: int, noise: float, acceptable: list[str]) -> None:
+        self.examples.append(ex)
+        self.ep.append(ep)
+        self.level.append(level)
+        self.noise.append(noise)
+        self.category.append(label_category(acceptable))
+
+    def extend(self, other: "Dataset") -> None:
+        for name in ("examples", "ep", "level", "noise", "category"):
+            getattr(self, name).extend(getattr(other, name))
+
+    def subset(self, idx) -> "Dataset":
+        out = Dataset()
+        for name in ("examples", "ep", "level", "noise", "category"):
+            src = getattr(self, name)
+            setattr(out, name, [src[i] for i in idx])
+        return out
+
+    def split(self, every: int = 20) -> tuple["Dataset", "Dataset"]:
+        """Deterministic split by episode id (no episode straddles both sides)."""
+        import zlib
+
+        val = np.array([zlib.crc32(e.encode()) % every == 0 for e in self.ep])
+        return self.subset(np.flatnonzero(~val)), self.subset(np.flatnonzero(val))
+
+
+def _load_shard(path: str) -> Dataset:
+    cache = Path(path + f".v{CACHE_VERSION}.pkl")
+    if cache.exists() and cache.stat().st_mtime >= Path(path).stat().st_mtime:
+        with open(cache, "rb") as fh:
+            return pickle.load(fh)
+    ds = Dataset()
+    goals: dict[str, Goal] = {}
+    with gzip.open(path, "rt") as fh:
+        for line in fh:
+            rec = json.loads(line)
+            if "goal" in rec:
+                goals[rec["ep"]] = Goal.from_json(rec["goal"])
+                continue
+            ex = make_example(State.from_json(rec["state"]), goals[rec["ep"]], rec["actions"], rec["acceptable"])
+            ds.add(ex, rec["ep"], rec["level"], rec["noise"], rec["acceptable"])
+    with open(cache, "wb") as fh:
+        pickle.dump(ds, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    return ds
+
+
+def load_dataset(directory: str | Path, workers: int = 8) -> Dataset:
+    paths = sorted(str(p) for p in Path(directory).glob("*.jsonl.gz"))
+    if not paths:
+        raise FileNotFoundError(f"no *.jsonl.gz shards in {directory}")
+    out = Dataset()
+    with ProcessPoolExecutor(max_workers=min(workers, len(paths))) as pool:
+        for ds in pool.map(_load_shard, paths):
+            out.extend(ds)
+    return out

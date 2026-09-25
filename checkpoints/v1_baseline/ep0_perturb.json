@@ -1,0 +1,53 @@
+{
+  "episodes": {
+    "L1": {
+      "episodes": 48,
+      "success": 0.9583,
+      "clean_success": 0.9583,
+      "mean_iou": 0.963,
+      "on_policy_agreement": 0.9833,
+      "steps_over_expert": 1.332,
+      "outcomes": {
+        "success": 46,
+        "wrong_geometry": 2
+      }
+    },
+    "L2": {
+      "episodes": 48,
+      "success": 1.0,
+      "clean_success": 0.9792,
+      "mean_iou": 0.9999,
+      "on_policy_agreement": 0.9951,
+      "steps_over_expert": 1.424,
+      "outcomes": {
+        "success": 48
+      }
+    },
+    "L3": {
+      "episodes": 48,
+      "success": 0.9792,
+      "clean_success": 0.9792,
+      "mean_iou": 0.9995,
+      "on_policy_agreement": 0.999,
+      "steps_over_expert": 1.409,
+      "outcomes": {
+        "success": 47,
+        "wrong_geometry": 1
+      }
+    },
+    "L4": {
+      "episodes": 48,
+      "success": 0.0625,
+      "clean_success": 0.0,
+      "mean_iou": 0.9212,
+      "on_policy_agreement": 0.8391,
+      "steps_over_expert": 1.025,
+      "outcomes": {
+        "budget": 6,
+        "wrong_geometry": 39,
+        "success": 3
+      }
+    },
+    "overall_success": 0.75
+  }
+}

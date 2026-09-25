@@ -1,0 +1,19 @@
+[project]
+name = "freecad-s1"
+version = "0.1.0"
+description = "System-1 next-action model for FreeCAD: option-attention scorer over structured CAD state"
+requires-python = ">=3.11"
+dependencies = ["torch>=2.3", "numpy"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["freecad_s1*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

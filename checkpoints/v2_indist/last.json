@@ -1,0 +1,14 @@
+{
+  "config": {
+    "width": 128,
+    "heads": 4,
+    "enc_layers": 3,
+    "dec_layers": 2,
+    "ff": 384,
+    "dropout": 0.1,
+    "id_dropout": 0.1
+  },
+  "metadata": {
+    "phase": "dagger1"
+  }
+}
