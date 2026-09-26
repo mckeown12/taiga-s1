@@ -1,0 +1,86 @@
+{
+  "episodes": {
+    "comp-L3": {
+      "episodes": 60,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 60
+      }
+    },
+    "iid-L1": {
+      "episodes": 60,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 60
+      }
+    },
+    "iid-L2": {
+      "episodes": 60,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 60
+      }
+    },
+    "iid-L3": {
+      "episodes": 60,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 60
+      }
+    },
+    "len-L4": {
+      "episodes": 60,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 60
+      }
+    },
+    "len2-L5": {
+      "episodes": 60,
+      "success": 0.8,
+      "clean_success": 0.7833,
+      "mean_iou": 0.9905,
+      "on_policy_agreement": 0.9764,
+      "steps_over_expert": 0.999,
+      "outcomes": {
+        "wrong_geometry": 11,
+        "success": 48,
+        "budget": 1
+      }
+    },
+    "len3-L6": {
+      "episodes": 60,
+      "success": 0.05,
+      "clean_success": 0.0,
+      "mean_iou": 0.9209,
+      "on_policy_agreement": 0.8783,
+      "steps_over_expert": 0.818,
+      "outcomes": {
+        "wrong_geometry": 54,
+        "success": 3,
+        "budget": 3
+      }
+    },
+    "overall_success": 0.8357
+  }
+}

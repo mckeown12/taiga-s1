@@ -72,7 +72,7 @@ def ppo(args) -> None:
             ep_returns, ep_success = [], []
             ret_acc = [0.0] * len(envs)
             for _ in range(args.horizon):
-                examples = [make_example(e["state"], e["goal"], e["actions"], e["expert"]) for e in envs]
+                examples = [make_example(e["state"], e["goal"], e["actions"], e["expert"], **model.cfg.feature_opts()) for e in envs]
                 batch = {k: v.to(device) for k, v in collate(examples).items()}
                 with torch.no_grad():
                     model.eval()
@@ -105,7 +105,7 @@ def ppo(args) -> None:
                         e["state"], e["actions"], e["expert"] = State.from_json(r["state"]), r["actions"], r["expert"]
             # Bootstrap values for unfinished trajectories.
             with torch.no_grad():
-                examples = [make_example(e["state"], e["goal"], e["actions"], e["expert"]) for e in envs]
+                examples = [make_example(e["state"], e["goal"], e["actions"], e["expert"], **model.cfg.feature_opts()) for e in envs]
                 _, last_values = model({k: v.to(device) for k, v in collate(examples).items()})
             flat, advs, rets = [], [], []
             for i, traj in enumerate(trajs):
@@ -165,7 +165,7 @@ def ppo(args) -> None:
         vec.close()
     (out / "ppo_history.json").write_text(json.dumps(history, indent=2))
     if args.eval_episodes:
-        report = online_metrics(model.eval(), device, tuple(args.levels), args.eval_episodes, args.workers)
+        report = online_metrics(model.eval(), device, episodes=args.eval_episodes, workers=args.workers)
         print(json.dumps({"episodes": report}, indent=2))
 
 

@@ -71,7 +71,7 @@ A 3-layer transformer encodes the whole sequence. Goal and state share this enco
 - *Level 4*: held out of all training data. It is longer compositions (boss + two cut groups + dressup, 6–7 features) and tests compositional and length generalization.
 - *`--perturb p`*: injects random off-plan actions at rate p during the episode to test recovery.
 
-## Results
+## Results (v2, in-distribution)
 
 Model: 1,180,162 parameters. Forward pass ~0.9 ms on CPU (batch 1).
 
@@ -96,7 +96,61 @@ The baseline in `runs/baseline_v1` was trained with rigid L3 templates, 1 epoch,
 2. **Template shortcuts were the first L4 failure, and the fix worked.** With rigid L3 templates, a pattern or mirror was always followed by a dressup or Done, so the model learned that ordering instead of reading the goal. It failed at the start of every second cut group (`scripts/diagnose.py` finds the first step where the policy leaves the expert's acceptable set). Randomizing L3 structure plus relative-order goal features removed that failure: L4 went from 6% to 27% after one epoch.
 3. **Length extrapolation is the remaining gap, and it gets worse with more training.** Training goals have at most 5 features and L4 has 6–7. After one epoch the model mostly said `Done` once 5 features existed. After full training it fits the ≤5-feature distribution more tightly, and L4 falls to 8% with more varied errors: spurious `Std_Undo` on unfamiliar long trees, the wrong pattern type for the second group, and early `Done`. Mean IoU on L4 is still 0.96, meaning most of the part is built correctly before it derails.
 
-**Next steps.**
-- Train on the lengths you need to support (e.g. up to 8 features), and hold out *compositions* rather than lengths.
-- If extrapolation matters, give the encoder a structural matching signal between goal tokens and tree nodes. One option is a goal↔node cross-attention layer with a per-goal-token "satisfied" readout supervised by the expert, so progress is not implicit.
-- PPO (`rl_ppo.py`) is implemented and smoke-tested but was not run at scale. With L1–L3 at 100%, RL has nothing to improve in-distribution. It becomes useful once goals are harder than what the expert covers, or once numeric parameters are predicted by a model rather than taken from the goal.
+## Generalization research (v3)
+
+The v2 results above measure in-distribution skill, and 98.8% of test goals reuse a feature structure seen in training. To test real generalization, I built a benchmark of held-out splits, generated from test-only seeds:
+
+| Suite | What is held out |
+|---|---|
+| `iid` | nothing: L1–L3 goals with new dimensions and starts |
+| `comp` | combinations: `boss_box` together with a pattern, and `hole_std` directly followed by `mirror`. Every feature and most pairs are seen elsewhere. |
+| `comp2` | confirmation: `boss_box` → `mirror`, which the training sampler never produces. Never used for any design decision. |
+| `len` / `len2` / `len3` | length: 6–7 / 8–10 / 11 intents. Training has at most 5. `len3` was held back as a confirmation suite. |
+
+Training data (`data/gen_train`, 24k episodes) excludes every held-out rule and records the expert's progress index as an auxiliary label.
+
+### Hypotheses from the literature, tested as ablations
+
+All runs are SFT for 3 epochs on the same data, evaluated on 60 episodes per suite. `iid`, `comp` and `len` (6–7) are omitted from the table: every variant with randomized positions scores 88–100% there, and `comp` was 97–100% for all variants in this setting. Scripts: `scripts/ablate.sh`, `round*.sh`, `eval_mappings.sh`.
+
+| Variant | Idea (source) | 8–10 intents | 11 intents |
+|---|---|---|---|
+| A: v2 architecture | – | 2% | – |
+| D: + progress pointer | self-monitoring progress estimation ([Ma et al. 2019](https://arxiv.org/abs/1901.03035)) | 2% | – |
+| J: + length-invariant numerics | counts expressed relative to the target | 2% | – |
+| B: randomized positions | [Ruoss et al. 2023](https://arxiv.org/abs/2305.16843) | 65% / 37%† | – |
+| C: B + coupled ordinals | position coupling / index hints ([Cho et al. 2024](https://arxiv.org/abs/2405.20671), [Zhou et al. 2024](https://arxiv.org/abs/2402.09371)) | 80 / 68 / 78%† | 5%† |
+| C, consecutive test-time indices | same model, different test-time mapping | 97 / 97 / 95% | 95 / 63 / 83% |
+| K: C + modular softmax pointer | stage-wise modular policy ([Diagnosing Compositional Generalization, 2026](https://arxiv.org/html/2607.29687)) | 48%† | – |
+| **L: C + modular done-head policy**, consecutive indices | this work | **100 / 100 / 100%** | **100 / 100 / 100%** |
+
+† = evenly spread test-time mapping (the default at the time). Values separated by slashes are seeds 0 / 1 / 2.
+
+What mattered, in order:
+
+1. **Randomized positions.** The v2 length failure was out-of-distribution position IDs (Ruoss et al.). This alone took 6–7-intent goals from 40% to 100%.
+2. **Consecutive indices at test time.** Randomized training positions and ordinals were first mapped at test time onto evenly spaced values across their range. That squeezes large indices together and falls apart at 11 intents (5–8%). Keeping them consecutive, the tightest mapping in the training support, fixed it for every randomized variant. It was chosen on the 8–10-intent suite and then confirmed on the untouched 11-intent suite.
+3. **Modular policy with per-intent "done" heads (variant L).**
+   - **Design.** State tokens can't see goal tokens. Each intent token sees only the state and itself, plus an END sentinel. It predicts "is there a built feature with my ordinal?", which is an equality match on coupled ordinals. The first intent that isn't done is the active one, and the action decoder sees only the state and that intent. An invariance test (`test_modular_decision_ignores_other_intents`) checks that decisions don't change when more intents are appended.
+   - **Why the softmax pointer (K) failed.** It needs a learned *successor* relation (ordinal = built + 1). A per-step probe (`scripts/probe_pointer.py`) showed it was perfect up to the trained intent index and ~70% beyond. Given the correct intent, the policy itself was 100% accurate.
+   - **Result.** L is the only variant at 100% on 11 intents across all three seeds.
+4. **Factorized feature types (variant M = L + `--type-dropout 0.15`).**
+   - **The problem.** The full-length L training run (4 epochs + DAgger) regressed on `comp` to 53%. Every failure was the unseen adjacent pair `hole_std → mirror`: the model pressed Undo, because FreeCAD's `PartDesign::Hole` object had never been followed by a mirror.
+   - **Supporting evidence.** `comp2` (`boss_box → mirror`) stayed at 100%, because a boss_box becomes a `Pad`, and Pad → Mirrored is seen in training. This matches the 2026 finding that unseen *pairs* are the hard case.
+   - **The fix.** Tree nodes, selected objects and recent actions get a functional-category embedding (subtractive / additive / dressup / pattern). The specific type ID is dropped 15% of the time in training. This raised `comp` from 53% to 90%.
+
+Ideas that did not help: the progress pointer alone (D), length-invariant numerics (H, J), stochastic test-time sampling of positions, and the softmax modular pointer (K).
+
+### Final model: `runs/final_M`
+
+Variant M (randomized positions, coupled ordinals, length-invariant numerics, modular done-head policy, factorized types, consecutive test-time indices), trained with SFT for 4 epochs plus 2 DAgger rounds. 1,228,163 parameters. Recipe: `EXTRA="--type-dropout 0.15" OUT=runs/final_M ./scripts/train_final.sh`.
+
+| Suite (100 episodes each) | iid L1 | L2 | L3 | comp | comp2 | 6–7 | 8–10 | 11 |
+|---|---|---|---|---|---|---|---|---|
+| Success | 100 | 100 | 100 | 90 | 100 | 100 | 100 | 100 |
+| Success, 20% random actions injected | 100 | 100 | 96 | 95 | 94 | 97 | 91 | 91 |
+| v2 model (`checkpoints/v2_indist`) | 100 | 100 | 100 | n/a‡ | – | 8 | – | – |
+
+‡ The v2 training data included these combinations.
+
+Per-step accuracy on held-out states: 99.84%.

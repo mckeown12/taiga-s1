@@ -281,6 +281,11 @@ class HeadlessSession:
             return []
         return acts
 
+    def progress(self) -> int:
+        """Index of the goal intent currently being worked on (== number of
+        intents when everything is built). Auxiliary label, never an input."""
+        return progress(self.goal, self.meta)
+
     def step(self, action: str) -> dict:
         """Execute `action`. Returns {"changed", "error", "done", "on_plan"}."""
         on_plan = action in self.expert()

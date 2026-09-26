@@ -1,0 +1,43 @@
+A_abs_s0  step_acc=0.9990  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.40
+B_rand_s0  step_acc=0.9988  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+C_rand_ord_s0  step_acc=0.9986  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+D_progress_s0  step_acc=0.9989  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.38
+E_full_s0  step_acc=0.9982  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+A_abs_s0  len2-L5=0.02  [len2]
+B_rand_s0  len2-L5=0.50  [len2]
+C_rand_ord_s0  len2-L5=0.72  [len2]
+D_progress_s0  len2-L5=0.02  [len2]
+E_full_s0  len2-L5=0.72  [len2]
+A_abs_s1  step_acc=0.9990  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.40
+B_rand_s1  step_acc=0.9986  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.88
+A_abs_s1  len2-L5=0.02  [len2]
+B_rand_s1  len2-L5=0.37  [len2]
+A_abs_s0  len2-L5=0.02  [len2 fixed]
+B_rand_s0  len2-L5=0.65  [len2 fixed]
+C_rand_ord_s0  len2-L5=0.80  [len2 fixed]
+D_progress_s0  len2-L5=0.02  [len2 fixed]
+E_full_s0  len2-L5=0.82  [len2 fixed]
+H_inv_s0  step_acc=0.9984  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+H_inv_s0  len2-L5=0.78  [len2 fixed]
+J_inv_only_s0  step_acc=0.9990  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.25
+J_inv_only_s0  len2-L5=0.02  [len2 fixed]
+K_modular_s0  step_acc=0.9978  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.97
+K_modular_s0  len2-L5=0.48  [len2 fixed]
+L_done_s0  step_acc=0.9975  comp-L3=0.97  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+L_done_s0  len2-L5=0.97  [len2 fixed]
+L_done_s0  comp-L3=0.97  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=0.97  len3-L6=0.08  [all, expected]
+L_done_s0  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=1.00  len3-L6=1.00  [all, identity]
+C_rand_ord_s1  step_acc=0.9984  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.90
+C_rand_ord_s1  len2-L5=0.68  [len2 fixed]
+C_rand_ord_s0  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=0.80  len3-L6=0.05  [all, expected]
+C_rand_ord_s0  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=0.97  len3-L6=0.95  [all, identity]
+L_done_s1  step_acc=0.9977  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=0.90
+L_done_s1  len2-L5=0.65  [len2 fixed]
+L_done_s1  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=1.00  len3-L6=1.00  [all, identity]
+C_rand_ord_s1  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=0.97  len3-L6=0.63  [all, identity]
+C_rand_ord_s2  step_acc=0.9987  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+C_rand_ord_s2  len2-L5=0.78  [len2 fixed]
+L_done_s2  step_acc=0.9976  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00
+L_done_s2  len2-L5=0.57  [len2 fixed]
+L_done_s2  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=1.00  len3-L6=1.00  [all, identity]
+C_rand_ord_s2  comp-L3=1.00  iid-L1=1.00  iid-L2=1.00  iid-L3=1.00  len-L4=1.00  len2-L5=0.95  len3-L6=0.83  [all, identity]

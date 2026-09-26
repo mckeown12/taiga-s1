@@ -25,7 +25,8 @@ class Policy:
     @torch.no_grad()
     def distributions(self, states, goals, action_lists) -> list[torch.Tensor]:
         self.model.eval()
-        batch = collate([make_example(s, g, a) for s, g, a in zip(states, goals, action_lists)])
+        opts = self.model.cfg.feature_opts()
+        batch = collate([make_example(s, g, a, **opts) for s, g, a in zip(states, goals, action_lists)])
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits, _ = self.model(batch)
         probs = torch.softmax(logits, -1).cpu()
@@ -76,7 +77,8 @@ def run_episodes(policy: Policy, vec: VecEnv, specs: list[dict], sample: bool = 
         for k, i in enumerate(active):
             e = eps[i]
             if collect is not None and e.expert:
-                collect.add(make_example(e.state, e.goal, e.actions, e.expert), f"dagger-{specs[i].get('seed')}",
+                collect.add(make_example(e.state, e.goal, e.actions, e.expert, e.progress,
+                                         **policy.model.cfg.feature_opts()), f"dagger-{specs[i].get('seed')}",
                             e.level, -1.0, e.expert)
             if beta > 0 and rng is not None and e.expert and rng.random() < beta:
                 chosen[k] = e.expert[0]
@@ -92,6 +94,7 @@ def run_episodes(policy: Policy, vec: VecEnv, specs: list[dict], sample: bool = 
             e.steps += 1
             e.history.append(a)
             e.state, e.actions = State.from_json(r["state"]), r["actions"]
+            e.progress = r.get("progress", -1)
             prev_expert, e.expert = e.expert, r["expert"]
             if r["info"]["done"]:
                 e.done = True

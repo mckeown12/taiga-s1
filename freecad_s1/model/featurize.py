@@ -21,7 +21,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..actions import ACTION_IDS, CATALOGUE, CATEGORIES, SCOPES, WORD_VOCAB, action_vector, action_words
+from ..actions import (ACTION_IDS, CATALOGUE, CATEGORIES, SCOPES, SOLID_FEATURE_TYPES, WORD_VOCAB, action_vector,
+                       action_words)
 from ..schema import (
     CONSTRAINT_KINDS, GEOMETRY_KINDS, GOAL_KINDS, GOAL_LENGTH_KEYS, GOAL_PARAM_KEYS, LENGTH_KEYS,
     NODE_NUM_KEYS, NODE_TYPES, SELECTION_KINDS, WORKBENCHES, Goal, State,
@@ -30,10 +31,11 @@ from ..schema import (
 SEG_CLS, SEG_GLOBAL, SEG_NODE, SEG_SEL, SEG_RECENT, SEG_GOAL_GLOBAL, SEG_GOAL = range(7)
 N_SEGMENTS = 7
 NUM_DIM = len(NODE_NUM_KEYS) + len(GEOMETRY_KINDS) + len(CONSTRAINT_KINDS)
-MAX_POS = 64
+MAX_POS = 128  # position-embedding table; randomized positions sample from this range
+MAX_ORD = 32  # ordinal-embedding table (0 = no ordinal)
 MAX_NODES = 40
 MAX_SEL = 4
-MAX_GOAL = 8
+MAX_GOAL = 24
 MAX_WORDS = 8
 ACT_VEC_DIM = 6
 
@@ -61,32 +63,68 @@ class Tokens:
     b: np.ndarray  # (L,) int16
     pos: np.ndarray  # (L,) int8
     num: np.ndarray  # (L, NUM_DIM) float16
+    ord: np.ndarray  # (L,) int8: coupled ordinal, 0 = none (see encode_state)
 
 
 def _clip(x: float, lim: float = 8.0) -> float:
     return float(max(-lim, min(lim, x)))
 
 
-def encode_state(state: State, goal: Goal) -> Tokens:
+def encode_state(state: State, goal: Goal, invariant: bool = False, sentinel: bool = False) -> Tokens:
+    """`invariant` (H5): drop numeric features whose magnitude grows with the
+    length of the build (tree size, number of intents, intents remaining) and
+    express face/edge counts relative to the target, so longer goals do not
+    push numeric inputs outside the training range.
+
+    `sentinel`: append an END intent token (kind id 0, ordinal n+1) after the
+    goal list, so "everything is built" is represented like any other intent
+    (used by the modular architecture's pointer)."""
     scale = goal.scale if goal.scale > 0 else 1.0
     tgt_vol = goal.target.volume if goal.target.volume > 0 else scale ** 3
     rows: list[tuple[int, int, int, int, list[float]]] = []
+    ords: list[int] = []
 
     rows.append((SEG_CLS, 0, 0, 0, []))
 
     sh = state.shape
+    t = goal.target
+    if invariant:
+        faces = _clip(sh.n_faces / max(t.n_faces, 1), 4.0)
+        edges = _clip(sh.n_edges / max(t.n_edges, 1), 4.0)
+        tree_len = 0.0
+    else:
+        faces, edges, tree_len = sh.n_faces / 50, sh.n_edges / 100, len(state.tree) / 10
     g = [float(state.doc_open), float(state.has_body), float(state.edit is not None), float(state.undo_available),
          len(state.selection) / 4, float(sh.valid), _clip(sh.volume / tgt_vol),
-         *(_clip(x / scale) for x in sh.bbox), sh.n_faces / 50, sh.n_edges / 100, float(sh.n_solids),
-         *(float(d in sh.face_dirs) for d in FACE_DIRS), len(state.tree) / 10]
+         *(_clip(x / scale) for x in sh.bbox), faces, edges, float(sh.n_solids),
+         *(float(d in sh.face_dirs) for d in FACE_DIRS), tree_len]
     rows.append((SEG_GLOBAL, _WB.get(state.workbench, 0), 0, 0, g))
+
+    # Coupled ordinals (cf. position coupling / index hints): goal intent k and
+    # the tree objects that would realize it share ordinal k+1. For a tree
+    # node the ordinal is 1 + the number of solid features before it, so the
+    # k-th feature and the sketch it consumes line up with intent k. Computed
+    # from observable state only.
+    node_ords = []
+    n_solid = 0
+    for node in state.tree[:MAX_NODES]:
+        if node.type in SOLID_FEATURE_TYPES:
+            node_ords.append(min(n_solid + 1, MAX_ORD - 1))
+            n_solid += 1
+        elif node.type == "Sketcher::SketchObject":
+            node_ords.append(min(n_solid + 1, MAX_ORD - 1))
+        else:
+            node_ords.append(0)
 
     for i, node in enumerate(state.tree[:MAX_NODES]):
         num = [_clip(node.num.get(k, 0.0) / (scale if k in LENGTH_KEYS else 1.0)) for k in NODE_NUM_KEYS]
         num += [node.geo.get(k, 0) / 10 for k in GEOMETRY_KINDS]
         num += [node.cons.get(k, 0) / 10 for k in CONSTRAINT_KINDS]
+        if invariant and "n_faces" in node.num:
+            num[NODE_NUM_KEYS.index("n_faces")] = _clip(node.num["n_faces"] * 50 / max(t.n_faces, 1), 4.0)
         b = len(NODE_TYPES) + min(node.depth, 3)
         rows.append((SEG_NODE, _NODE_TYPE.get(node.type, 0), b, min(i, MAX_POS - 1), num))
+        ords.append(len(rows) - 1)
 
     for i, sel in enumerate(state.selection[:MAX_SEL]):
         num = [*sel.normal, _clip(sel.offset / scale), sel.count / 10]
@@ -95,10 +133,13 @@ def encode_state(state: State, goal: Goal) -> Tokens:
     for i, act in enumerate(reversed(state.recent)):
         rows.append((SEG_RECENT, _ACT.get(act, 0), 0, i, []))
 
-    t = goal.target
-    gg = [*(_clip(x / scale) for x in t.bbox), _clip(t.volume / scale ** 3), t.n_faces / 50, t.n_edges / 100,
-          len(goal.features) / 10]
+    if invariant:
+        gg = [*(_clip(x / scale) for x in t.bbox), _clip(t.volume / scale ** 3)]
+    else:
+        gg = [*(_clip(x / scale) for x in t.bbox), _clip(t.volume / scale ** 3), t.n_faces / 50, t.n_edges / 100,
+              len(goal.features) / 10]
     rows.append((SEG_GOAL_GLOBAL, 0, 0, 0, gg))
+    goal_rows: list[int] = []
 
     for i, f in enumerate(goal.features[:MAX_GOAL]):
         num = []
@@ -109,10 +150,23 @@ def encode_state(state: State, goal: Goal) -> Tokens:
         # Relative order, so "which intent is next / is this the last one"
         # does not hinge on absolute position embeddings seen in training.
         n_goal = len(goal.features)
-        num += [i / max(n_goal - 1, 1), float(i == n_goal - 1), (n_goal - 1 - i) / 10]
+        if sentinel:  # modular mode: order comes from the coupled ordinal only, so an
+            num += [0.0, 0.0, 0.0]  # intent's features never depend on the goal's length
+        else:
+            num += [i / max(n_goal - 1, 1), float(i == n_goal - 1), 0.0 if invariant else (n_goal - 1 - i) / 10]
         rows.append((SEG_GOAL, _GOAL.get(f.kind, 0), 0, min(i, MAX_POS - 1), num))
+        goal_rows.append(len(rows) - 1)
+    if sentinel:
+        end_num = [0.0] * (2 * len(GOAL_PARAM_KEYS)) + [1.0, 1.0, 0.0]
+        rows.append((SEG_GOAL, 0, 0, min(len(goal_rows), MAX_POS - 1), end_num))
+        goal_rows.append(len(rows) - 1)
 
     n = len(rows)
+    ordinal = np.zeros(n, np.int8)
+    for row, o in zip(ords, node_ords):
+        ordinal[row] = o
+    for k, row in enumerate(goal_rows):
+        ordinal[row] = min(k + 1, MAX_ORD - 1)
     seg = np.zeros(n, np.int8)
     a = np.zeros(n, np.int16)
     b = np.zeros(n, np.int16)
@@ -122,7 +176,7 @@ def encode_state(state: State, goal: Goal) -> Tokens:
         seg[j], a[j], b[j], pos[j] = s, A_OFFSETS[s] + ai, bi, p
         if v:
             num[j, : len(v)] = v
-    return Tokens(seg, a, b, pos, num)
+    return Tokens(seg, a, b, pos, num, ordinal)
 
 
 _ACTION_CACHE: dict[str, tuple[int, int, int, list[int], list[float]]] = {}
@@ -159,12 +213,14 @@ class Example:
     tokens: Tokens
     actions: dict[str, np.ndarray]
     target: np.ndarray  # (N,) bool, acceptable actions
+    progress: int = -1  # index of the goal intent being worked on (== #intents when done); -1 unknown
 
 
-def make_example(state: State, goal: Goal, actions: list[str], acceptable: list[str] | None = None) -> Example:
+def make_example(state: State, goal: Goal, actions: list[str], acceptable: list[str] | None = None,
+                 progress: int | None = None, invariant: bool = False, sentinel: bool = False) -> Example:
     acc = set(acceptable or [])
-    return Example(encode_state(state, goal), encode_actions(actions),
-                   np.array([a in acc for a in actions], dtype=bool))
+    return Example(encode_state(state, goal, invariant, sentinel), encode_actions(actions),
+                   np.array([a in acc for a in actions], dtype=bool), -1 if progress is None else int(progress))
 
 
 def collate(examples: list[Example]):
@@ -179,7 +235,11 @@ def collate(examples: list[Example]):
     b = np.zeros((bsz, L), np.int64)
     pos = np.zeros((bsz, L), np.int64)
     num = np.zeros((bsz, L, NUM_DIM), np.float32)
+    ordinal = np.zeros((bsz, L), np.int64)
     tmask = np.zeros((bsz, L), bool)
+    # Progress label as a pointer target over token slots: the k-th goal
+    # token, or column L (the END slot) once every intent is built.
+    progress = np.full(bsz, -1, np.int64)
     aid = np.zeros((bsz, N), np.int64)
     cat = np.zeros((bsz, N), np.int64)
     scope = np.zeros((bsz, N), np.int64)
@@ -191,7 +251,11 @@ def collate(examples: list[Example]):
         t, n = len(e.tokens.seg), len(e.target)
         seg[i, :t], a[i, :t], b[i, :t], pos[i, :t] = e.tokens.seg, e.tokens.a, e.tokens.b, e.tokens.pos
         num[i, :t] = e.tokens.num
+        ordinal[i, :t] = e.tokens.ord
         tmask[i, :t] = True
+        if e.progress >= 0:
+            goal_slots = np.flatnonzero(e.tokens.seg == SEG_GOAL)
+            progress[i] = goal_slots[e.progress] if e.progress < len(goal_slots) else L
         aid[i, :n], cat[i, :n], scope[i, :n] = e.actions["id"], e.actions["cat"], e.actions["scope"]
         words[i, :n], vec[i, :n] = e.actions["words"], e.actions["vec"]
         amask[i, :n] = True
@@ -199,6 +263,7 @@ def collate(examples: list[Example]):
     to = torch.from_numpy
     return {
         "seg": to(seg), "a": to(a), "b": to(b), "pos": to(pos), "num": to(num), "token_mask": to(tmask),
+        "ord": to(ordinal), "progress": to(progress),
         "act_id": to(aid), "act_cat": to(cat), "act_scope": to(scope), "act_words": to(words),
         "act_vec": to(vec), "action_mask": to(amask), "target": to(target),
     }

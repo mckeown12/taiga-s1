@@ -1,0 +1,107 @@
+{
+  "config": {
+    "width": 128,
+    "heads": 4,
+    "enc_layers": 3,
+    "dec_layers": 2,
+    "ff": 384,
+    "dropout": 0.1,
+    "id_dropout": 0.1,
+    "pos_mode": "rand",
+    "pos_table": 48,
+    "ordinal": true,
+    "ord_table": 12,
+    "progress_head": false
+  },
+  "metadata": {
+    "val": {
+      "acc": 0.9983,
+      "nll": 0.0061,
+      "n": 29588,
+      "by_level": {
+        "1": {
+          "acc": 0.9976,
+          "n": 2894
+        },
+        "2": {
+          "acc": 0.9975,
+          "n": 7214
+        },
+        "3": {
+          "acc": 0.9987,
+          "n": 19480
+        }
+      },
+      "by_category": {
+        "additive": {
+          "acc": 1.0,
+          "n": 1858
+        },
+        "body": {
+          "acc": 1.0,
+          "n": 1154
+        },
+        "dressup": {
+          "acc": 1.0,
+          "n": 652
+        },
+        "pattern": {
+          "acc": 1.0,
+          "n": 639
+        },
+        "select": {
+          "acc": 0.9998,
+          "n": 4393
+        },
+        "sketch": {
+          "acc": 1.0,
+          "n": 2824
+        },
+        "sketch_constraint": {
+          "acc": 0.9964,
+          "n": 6945
+        },
+        "sketch_geometry": {
+          "acc": 1.0,
+          "n": 2738
+        },
+        "sketch_misc": {
+          "acc": 1.0,
+          "n": 2812
+        },
+        "std": {
+          "acc": 1.0,
+          "n": 416
+        },
+        "subtractive": {
+          "acc": 1.0,
+          "n": 957
+        },
+        "terminal": {
+          "acc": 1.0,
+          "n": 1413
+        },
+        "undo": {
+          "acc": 0.986,
+          "n": 1786
+        },
+        "workbench": {
+          "acc": 1.0,
+          "n": 1001
+        }
+      },
+      "by_noise": {
+        "clean": {
+          "acc": 1.0,
+          "n": 9455
+        },
+        "noisy": {
+          "acc": 0.9975,
+          "n": 20133
+        }
+      }
+    },
+    "tag": "sft",
+    "epoch": 2
+  }
+}

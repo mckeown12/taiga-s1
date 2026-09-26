@@ -31,7 +31,7 @@ from .model.net import S1Config, S1Model, parameter_count, save_checkpoint, sele
 
 def train_epochs(model, opt, ds: Dataset, device, epochs: int, batch_size: int, lr: float, warmup: int,
                  log_every: int = 200, val: Dataset | None = None, out: Path | None = None, tag: str = "sft",
-                 best: dict | None = None) -> dict:
+                 best: dict | None = None, aux_coef: float = 0.5) -> dict:
     n = len(ds)
     steps_per_epoch = math.ceil(n / batch_size)
     total = epochs * steps_per_epoch
@@ -48,8 +48,11 @@ def train_epochs(model, opt, ds: Dataset, device, epochs: int, batch_size: int, 
             cur_lr = lr * min(1.0, (step + 1) / warmup) * 0.5 * (1 + math.cos(math.pi * step / total))
             for g in opt.param_groups:
                 g["lr"] = cur_lr
-            logits, _ = model(batch)
+            logits, _, ptr_logits = model(batch, return_aux=True)
             loss = multilabel_nll(logits, batch["target"]).mean()
+            aux = model.aux_loss(ptr_logits, batch) if aux_coef > 0 else None
+            if aux is not None:
+                loss = loss + aux_coef * aux
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -84,6 +87,19 @@ def main() -> None:
     ap.add_argument("--enc-layers", type=int, default=3)
     ap.add_argument("--dec-layers", type=int, default=2)
     ap.add_argument("--ff", type=int, default=384)
+    ap.add_argument("--pos-mode", choices=["abs", "rand"], default="abs")
+    ap.add_argument("--ordinal", action="store_true", help="coupled goal/tree ordinals")
+    ap.add_argument("--progress-head", action="store_true", help="progress pointer + active-intent conditioning")
+    ap.add_argument("--invariant-numerics", action="store_true", help="length-invariant numeric features")
+    ap.add_argument("--type-dropout", type=float, default=0.0,
+                    help="factorized types: category embeddings + drop specific type ids with this prob")
+    ap.add_argument("--index-eval", choices=["expected", "identity"], default="expected",
+                    help="test-time mapping of randomized positions/ordinals stored in the checkpoint")
+    ap.add_argument("--pointer", choices=["softmax", "done"], default="softmax",
+                    help="modular policy: softmax pointer or per-intent done heads")
+    ap.add_argument("--modular", action="store_true",
+                    help="stage-wise modular policy: actions see only the state + the active intent")
+    ap.add_argument("--aux-coef", type=float, default=0.5, help="weight of the progress-pointer loss")
     ap.add_argument("--max-examples", type=int, default=0, help="subsample training set (0 = all)")
     ap.add_argument("--dagger-rounds", type=int, default=0)
     ap.add_argument("--dagger-episodes", type=int, default=240, help="episodes per level per round")
@@ -101,18 +117,23 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     t0 = time.time()
-    full = load_dataset(args.data)
+    ap_cfg = S1Config(invariant_numerics=args.invariant_numerics, modular=args.modular)
+    full = load_dataset(args.data, **ap_cfg.feature_opts())
     train, val = full.split()
     if args.max_examples and len(train) > args.max_examples:
         train = train.subset(sorted(rng.sample(range(len(train)), args.max_examples)))
     print(f"loaded {len(full)} examples ({len(train)} train / {len(val)} val) in {time.time() - t0:.0f}s")
 
-    cfg = S1Config(width=args.width, enc_layers=args.enc_layers, dec_layers=args.dec_layers, ff=args.ff)
+    cfg = S1Config(width=args.width, enc_layers=args.enc_layers, dec_layers=args.dec_layers, ff=args.ff,
+                   pos_mode=args.pos_mode, ordinal=args.ordinal, progress_head=args.progress_head,
+                   invariant_numerics=args.invariant_numerics, modular=args.modular, pointer=args.pointer,
+                   index_eval=args.index_eval, type_dropout=args.type_dropout)
     model = S1Model(cfg).to(device)
     print(f"model params: {parameter_count(model):,} on {device}")
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-    best = train_epochs(model, opt, train, device, args.epochs, args.batch, args.lr, args.warmup, val=val, out=out)
+    best = train_epochs(model, opt, train, device, args.epochs, args.batch, args.lr, args.warmup, val=val, out=out,
+                        aux_coef=args.aux_coef)
     save_checkpoint(out / "sft_last.pt", model, {"phase": "sft"})
     history = {"sft_best": dict(best), "dagger": []}
 
@@ -138,7 +159,7 @@ def main() -> None:
                       f"+{len(collected)} labeled states", flush=True)
                 train.extend(collected)
                 best = train_epochs(model, opt, train, device, args.dagger_epochs, args.batch, args.lr * 0.3, 100,
-                                    val=val, out=out, tag=f"dagger{r}", best=best)
+                                    val=val, out=out, tag=f"dagger{r}", best=best, aux_coef=args.aux_coef)
                 history["dagger"].append({"round": r, "beta": beta, "rollout": summary, "added": len(collected)})
                 save_checkpoint(out / "last.pt", model, {"phase": f"dagger{r}"})
         finally:

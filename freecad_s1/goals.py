@@ -170,7 +170,8 @@ def sample_goal(level: int, rng: random.Random) -> Goal:
     # longer than anything in the training distribution.
     for _ in range(50):
         goal = _composite(rng, base, level)
-        if level <= 3 and len(goal.features) <= 5 or level >= 4 and len(goal.features) >= 6:
+        n = len(goal.features)
+        if level <= 3 and n <= 5 or level == 4 and n >= 6 or level == 5 and n >= 8 or level >= 6 and n >= 11:
             return goal
     return goal
 
@@ -179,7 +180,7 @@ def _composite(rng: random.Random, base: GoalFeature, level: int) -> Goal:
     components: list[tuple[list[GoalFeature], bool]] = []
     if level >= 4 or rng.random() < 0.5:
         components.append(([_on_top(rng, rng.choice(["boss_cyl", "boss_box"]), base)], False))
-    for _ in range(2 if level >= 4 or rng.random() < 0.35 else 1):
+    for _ in range(4 if level >= 6 else 3 if level >= 5 else 2 if level >= 4 or rng.random() < 0.35 else 1):
         components.append(_cut_group(rng, base))
     if level <= 3:
         rng.shuffle(components)
@@ -220,6 +221,66 @@ def _cut_group(rng: random.Random, base: GoalFeature) -> tuple[list[GoalFeature]
         return [_on_top(rng, k, base, x_sign=1.0), GoalFeature("mirror", {})], k != "boss_cyl"
     k = rng.choice(["hole", "hole_std", "pocket_rect"])
     return [_on_top(rng, k, base)], True
+
+
+# ---------------------------------------------------------------------------
+# Generalization splits. Every feature kind and every adjacent pair of kinds
+# still occurs in training; only these *combinations* are withheld.
+# ---------------------------------------------------------------------------
+
+PATTERNS = {"polar_pattern", "linear_pattern"}
+
+
+def heldout_composition(goal: Goal) -> str | None:
+    """Name of the held-out composition rule `goal` matches, if any."""
+    kinds = [f.kind for f in goal.features]
+    if "boss_box" in kinds and PATTERNS & set(kinds):
+        return "pattern+boss_box"  # patterns seen with boss_cyl, boss_box seen without patterns
+    for a, b in zip(kinds, kinds[1:]):
+        if a == "hole_std" and b == "mirror":
+            return "mirrored_hole_std"  # mirror seen on hole/pocket/boss, hole_std seen patterned
+    return None
+
+
+SPLITS = ("train", "iid", "comp", "comp2", "len")
+
+
+def goal_in_split(goal: Goal, split: str) -> bool:
+    """train/iid: levels 1-3 without held-out compositions; comp: level-3
+    goals matching a held-out rule; len: level-4 (6-7 features) goals without
+    held-out compositions."""
+    rule = heldout_composition(goal)
+    if split in ("train", "iid"):
+        return goal.level <= 3 and rule is None
+    if split == "comp":
+        return goal.level == 3 and rule is not None
+    if split == "len":
+        return goal.level >= 4 and rule is None
+    raise ValueError(split)
+
+
+def _mirrored_boss_box_goal(rng: random.Random) -> Goal:
+    """Confirmation split "comp2": boss_box followed by mirror, a pair the
+    training sampler never produces (_cut_group only mirrors hole, hole_std,
+    pocket_rect and boss_cyl). Optional plain hole and dressup; <= 5 intents."""
+    base = _base(rng, ["base_box", "base_box", "base_cyl", "base_hex"])
+    feats = [base]
+    if rng.random() < 0.5:
+        feats.append(_on_top(rng, rng.choice(["hole", "pocket_rect"]), base))
+    feats += [_on_top(rng, "boss_box", base, x_sign=1.0), GoalFeature("mirror", {})]
+    if len(feats) < 5 and rng.random() < 0.7:
+        feats.append(_dressup(rng, rng.choice(["fillet_top", "chamfer_top"]), base))
+    return Goal(feats, level=3, scale=_scale(base))
+
+
+def sample_split_goal(split: str, level: int, rng: random.Random, tries: int = 2000) -> Goal:
+    if split == "comp2":
+        return _mirrored_boss_box_goal(rng)
+    for _ in range(tries):
+        goal = sample_goal(level, rng)
+        if goal_in_split(goal, split):
+            return goal
+    raise ValueError(f"could not sample a {split} goal at level {level}")
 
 
 def sample_start(rng: random.Random, level: int) -> StartSpec:

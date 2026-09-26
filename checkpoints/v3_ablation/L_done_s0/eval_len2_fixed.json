@@ -1,0 +1,18 @@
+{
+  "episodes": {
+    "len2-L5": {
+      "episodes": 60,
+      "success": 0.9667,
+      "clean_success": 0.8667,
+      "mean_iou": 0.9991,
+      "on_policy_agreement": 0.9923,
+      "steps_over_expert": 0.996,
+      "outcomes": {
+        "success": 58,
+        "wrong_geometry": 1,
+        "budget": 1
+      }
+    },
+    "overall_success": 0.9667
+  }
+}

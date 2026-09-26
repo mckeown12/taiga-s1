@@ -5,7 +5,7 @@ worker. Requests arrive one per line on stdin; each response is one line on
 stdout prefixed with ``@@S1 `` (FreeCAD may print its own noise).
 
 Ops:
-  {"op": "reset", "level": L, "seed": S}          sample a feasible goal + start
+  {"op": "reset", "level": L, "seed": S, "split": "iid"}  sample a feasible goal + start
   {"op": "reset", "goal": {...}, "start": {...}}  use a given goal
   {"op": "step", "action": "PartDesign_Pad", "reward": bool}
   {"op": "score"}
@@ -37,7 +37,8 @@ class Worker:
 
     def observe(self) -> dict:
         state = self.session.state()
-        return {"state": state.to_json(), "actions": self.session.valid_actions(state), "expert": self.session.expert()}
+        return {"state": state.to_json(), "actions": self.session.valid_actions(state), "expert": self.session.expert(),
+                "progress": self.session.progress()}
 
     def handle(self, req: dict) -> dict:
         op = req["op"]
@@ -49,7 +50,8 @@ class Worker:
                 start = StartSpec(**req.get("start", {}))
                 s.reset(goal, start)
             else:
-                goal, start, self.target = new_episode(s, int(req["level"]), random.Random(int(req["seed"])))
+                goal, start, self.target = new_episode(s, int(req["level"]), random.Random(int(req["seed"])),
+                                                       split=req.get("split", "train"))
             self.last_iou = 0.0
             return {"goal": goal.to_json(), "start": asdict(start), "budget": step_budget(goal, start), **self.observe()}
         if op == "step":

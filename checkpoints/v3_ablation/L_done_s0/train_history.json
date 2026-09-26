@@ -1,0 +1,8 @@
+{
+  "sft_best": {
+    "acc": 0.997,
+    "epoch": 2,
+    "tag": "sft"
+  },
+  "dagger": []
+}

@@ -13,7 +13,9 @@ Run from the project venv; it fans out shards to FreeCAD's interpreter:
     python -m freecad_s1.datagen --out data/train --episodes 2000 3000 4000 --workers 8
 
 Output: gzip JSONL, one record per labeled step:
-    {"ep", "level", "step", "state", "goal", "actions", "acceptable", "noise"}
+    {"ep", "level", "step", "state", "actions", "acceptable", "noise", "progress"}
+Goals matching a held-out composition rule (goals.heldout_composition) are
+never generated, so they remain a clean generalization test.
 The goal is written once per episode (record with "goal") and referenced by
 "ep" afterwards to keep files small.
 """
@@ -60,7 +62,8 @@ def run_shard(out: Path, shard: int, episodes: list[int], seed: int) -> None:
                         break  # unrecoverable (beyond FreeCAD's undo history)
                     actions = session.valid_actions(state)
                     rec = {"ep": ep, "level": level, "step": t, "state": state.to_json(),
-                           "actions": actions, "acceptable": acceptable, "noise": noise}
+                           "actions": actions, "acceptable": acceptable, "noise": noise,
+                           "progress": session.progress()}
                     fh.write(json.dumps(rec, separators=(",", ":")) + "\n")
                     n_records += 1
                     if rng.random() < noise:

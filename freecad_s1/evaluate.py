@@ -68,7 +68,17 @@ def offline_metrics(model: S1Model, ds: Dataset, device: torch.device, batch_siz
     }
 
 
-def online_metrics(model: S1Model, device: torch.device, levels=(1, 2, 3), episodes: int = 100,
+SUITES = {
+    "iid": [(1, "iid"), (2, "iid"), (3, "iid")],  # training distribution, fresh goals
+    "comp": [(3, "comp")],  # held-out feature combinations (goals.heldout_composition)
+    "comp2": [(3, "comp2")],  # confirmation: boss_box -> mirror, never generated in training
+    "len": [(4, "len")],  # held-out length: 6-7 intents, training has <= 5
+    "len2": [(5, "len")],  # held-out length: 8-10 intents (~2x the training maximum)
+    "len3": [(6, "len")],  # held-out length: 11-13 intents (~2.5x); confirmation suite
+}
+
+
+def online_metrics(model: S1Model, device: torch.device, suites=("iid", "comp", "len"), episodes: int = 100,
                    workers: int = 8, seed_base: int = TEST_SEED_BASE, sample: bool = False,
                    perturb: float = 0.0) -> dict:
     from .rollout import Policy, run_episodes
@@ -79,13 +89,18 @@ def online_metrics(model: S1Model, device: torch.device, levels=(1, 2, 3), episo
     vec = VecEnv(workers)
     results = []
     try:
-        for level in levels:
-            for start in range(0, episodes, workers):
-                n = min(workers, episodes - start)
-                specs = [{"level": level, "seed": seed_base + level * 100_000 + start + i} for i in range(n)]
-                if n < workers:  # keep lockstep simple: idle workers replay a spec, results dropped
-                    specs += [specs[0]] * (workers - n)
-                results += run_episodes(policy, vec, specs, sample=sample, rng=rng, perturb=perturb)[:n]
+        for suite in suites:
+            for level, split in SUITES[suite]:
+                for start in range(0, episodes, workers):
+                    n = min(workers, episodes - start)
+                    specs = [{"level": level, "split": split, "seed": seed_base + level * 100_000 + start + i}
+                             for i in range(n)]
+                    if n < workers:  # keep lockstep simple: idle workers replay a spec, results dropped
+                        specs += [specs[0]] * (workers - n)
+                    batch = run_episodes(policy, vec, specs, sample=sample, rng=rng, perturb=perturb)[:n]
+                    for r in batch:
+                        r.level = f"{suite}-L{level}"
+                    results += batch
     finally:
         vec.close()
     return summarize(results)
@@ -101,7 +116,7 @@ def summarize(results) -> dict:
         for r in rs:
             outcomes[r.outcome] += 1
         ok = [r for r in rs if r.success]
-        out[f"L{level}"] = {
+        out[level if isinstance(level, str) else f"L{level}"] = {
             "episodes": len(rs),
             "success": round(np.mean([r.success for r in rs]), 4),
             "clean_success": round(np.mean([r.clean for r in rs]), 4),
@@ -119,24 +134,29 @@ def main() -> None:
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--data", help="held-out datagen directory for per-step accuracy")
     ap.add_argument("--episodes", type=int, default=100, help="online episodes per level (0 to skip)")
-    ap.add_argument("--levels", type=int, nargs="+", default=[1, 2, 3, 4],
-                    help="curriculum levels; level 4 is held out (never in training data)")
+    ap.add_argument("--suites", nargs="+", default=["iid", "comp", "len"], choices=list(SUITES),
+                    help="iid: levels 1-3; comp: held-out compositions; len: held-out length (level 4)")
     ap.add_argument("--perturb", type=float, default=0.0,
                     help="probability of replacing the policy's action by a random valid one")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--sample", action="store_true", help="sample actions instead of argmax")
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--index-eval", choices=["expected", "identity"],
+                    help="override the test-time mapping of randomized positions/ordinals")
     ap.add_argument("--out", help="write the report JSON here")
     args = ap.parse_args()
     device = select_device(args.device)
     model = load_checkpoint(args.ckpt, device)
+    if args.index_eval:
+        model.cfg.index_eval = args.index_eval
     report = {}
     if args.data:
-        report["per_step"] = offline_metrics(model, load_dataset(args.data), device)
+        report["per_step"] = offline_metrics(model, load_dataset(args.data, **model.cfg.feature_opts()),
+                                             device)
         print(json.dumps({"per_step": report["per_step"]}, indent=2))
     if args.episodes:
         random.seed(0)
-        report["episodes"] = online_metrics(model, device, tuple(args.levels), args.episodes, args.workers,
+        report["episodes"] = online_metrics(model, device, tuple(args.suites), args.episodes, args.workers,
                                             sample=args.sample, perturb=args.perturb)
         print(json.dumps({"episodes": report["episodes"]}, indent=2))
     if args.out:

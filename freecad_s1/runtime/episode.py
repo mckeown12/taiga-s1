@@ -6,7 +6,7 @@ from __future__ import annotations
 import random
 
 from ..expert import expert_plan_length
-from ..goals import StartSpec, sample_goal, sample_start
+from ..goals import StartSpec, sample_split_goal, sample_start
 from ..schema import Goal
 from .session import HeadlessSession, iou, shape_info
 
@@ -42,9 +42,10 @@ def build_target(session: HeadlessSession, goal: Goal, max_steps: int = 200):
     return target
 
 
-def sample_feasible_goal(session: HeadlessSession, level: int, rng: random.Random, tries: int = 20):
+def sample_feasible_goal(session: HeadlessSession, level: int, rng: random.Random, tries: int = 20,
+                         split: str = "train"):
     for _ in range(tries):
-        goal = sample_goal(level, rng)
+        goal = sample_split_goal(split, level, rng)
         try:
             target = build_target(session, goal)
         except GoalBuildError:
@@ -64,8 +65,8 @@ def score(session: HeadlessSession, target) -> dict:
     return {"iou": value, "match": value >= SUCCESS_IOU}
 
 
-def new_episode(session: HeadlessSession, level: int, rng: random.Random):
-    goal, target = sample_feasible_goal(session, level, rng)
+def new_episode(session: HeadlessSession, level: int, rng: random.Random, split: str = "train"):
+    goal, target = sample_feasible_goal(session, level, rng, split=split)
     start = sample_start(rng, level)
     session.reset(goal, start)
     return goal, start, target

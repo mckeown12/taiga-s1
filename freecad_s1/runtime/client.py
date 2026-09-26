@@ -70,6 +70,7 @@ class Episode:
     history: list[str] = field(default_factory=list)
     outcome: str = ""
     iou: float = 0.0
+    progress: int = -1
 
 
 class VecEnv:
@@ -89,7 +90,7 @@ class VecEnv:
             r = env.recv()
             goal = Goal.from_json(r["goal"])
             eps.append(Episode(goal, r["budget"], spec.get("level", goal.level), State.from_json(r["state"]),
-                               r["actions"], r["expert"]))
+                               r["actions"], r["expert"], progress=r.get("progress", -1)))
         return eps
 
     def step(self, idx: list[int], actions: list[str], reward: bool = False) -> list[dict]:

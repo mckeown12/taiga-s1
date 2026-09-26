@@ -1,0 +1,102 @@
+{
+  "episodes": {
+    "comp-L3": {
+      "episodes": 100,
+      "success": 0.95,
+      "clean_success": 0.94,
+      "mean_iou": 0.9781,
+      "on_policy_agreement": 0.9417,
+      "steps_over_expert": 1.514,
+      "outcomes": {
+        "success": 95,
+        "wrong_geometry": 3,
+        "budget": 2
+      }
+    },
+    "comp2-L3": {
+      "episodes": 100,
+      "success": 0.94,
+      "clean_success": 0.93,
+      "mean_iou": 0.9967,
+      "on_policy_agreement": 0.9598,
+      "steps_over_expert": 1.48,
+      "outcomes": {
+        "success": 94,
+        "wrong_geometry": 6
+      }
+    },
+    "iid-L1": {
+      "episodes": 100,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.375,
+      "outcomes": {
+        "success": 100
+      }
+    },
+    "iid-L2": {
+      "episodes": 100,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.434,
+      "outcomes": {
+        "success": 100
+      }
+    },
+    "iid-L3": {
+      "episodes": 100,
+      "success": 0.96,
+      "clean_success": 0.94,
+      "mean_iou": 0.9874,
+      "on_policy_agreement": 0.9844,
+      "steps_over_expert": 1.381,
+      "outcomes": {
+        "success": 96,
+        "budget": 1,
+        "wrong_geometry": 3
+      }
+    },
+    "len-L4": {
+      "episodes": 100,
+      "success": 0.97,
+      "clean_success": 0.94,
+      "mean_iou": 0.9962,
+      "on_policy_agreement": 0.9827,
+      "steps_over_expert": 1.414,
+      "outcomes": {
+        "success": 97,
+        "wrong_geometry": 3
+      }
+    },
+    "len2-L5": {
+      "episodes": 100,
+      "success": 0.91,
+      "clean_success": 0.84,
+      "mean_iou": 0.9939,
+      "on_policy_agreement": 0.9464,
+      "steps_over_expert": 1.419,
+      "outcomes": {
+        "success": 91,
+        "wrong_geometry": 9
+      }
+    },
+    "len3-L6": {
+      "episodes": 100,
+      "success": 0.91,
+      "clean_success": 0.84,
+      "mean_iou": 0.9854,
+      "on_policy_agreement": 0.9344,
+      "steps_over_expert": 1.418,
+      "outcomes": {
+        "success": 91,
+        "wrong_geometry": 8,
+        "budget": 1
+      }
+    },
+    "overall_success": 0.955
+  }
+}

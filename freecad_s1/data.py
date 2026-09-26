@@ -15,7 +15,7 @@ from .actions import CATALOGUE
 from .model.featurize import Example, make_example
 from .schema import Goal, State
 
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 
 def label_category(acceptable: list[str]) -> str:
@@ -64,8 +64,10 @@ class Dataset:
         return self.subset(np.flatnonzero(~val)), self.subset(np.flatnonzero(val))
 
 
-def _load_shard(path: str) -> Dataset:
-    cache = Path(path + f".v{CACHE_VERSION}.pkl")
+def _load_shard(args: tuple[str, dict]) -> Dataset:
+    path, opts = args
+    tag = "".join(f".{k}" for k, v in sorted(opts.items()) if v)
+    cache = Path(path + f".v{CACHE_VERSION}{tag}.pkl")
     if cache.exists() and cache.stat().st_mtime >= Path(path).stat().st_mtime:
         with open(cache, "rb") as fh:
             return pickle.load(fh)
@@ -77,19 +79,21 @@ def _load_shard(path: str) -> Dataset:
             if "goal" in rec:
                 goals[rec["ep"]] = Goal.from_json(rec["goal"])
                 continue
-            ex = make_example(State.from_json(rec["state"]), goals[rec["ep"]], rec["actions"], rec["acceptable"])
+            ex = make_example(State.from_json(rec["state"]), goals[rec["ep"]], rec["actions"], rec["acceptable"],
+                              rec.get("progress"), **opts)
             ds.add(ex, rec["ep"], rec["level"], rec["noise"], rec["acceptable"])
     with open(cache, "wb") as fh:
         pickle.dump(ds, fh, protocol=pickle.HIGHEST_PROTOCOL)
     return ds
 
 
-def load_dataset(directory: str | Path, workers: int = 8) -> Dataset:
+def load_dataset(directory: str | Path, workers: int = 8, **opts) -> Dataset:
+    """`opts` are featurization options (S1Config.feature_opts())."""
     paths = sorted(str(p) for p in Path(directory).glob("*.jsonl.gz"))
     if not paths:
         raise FileNotFoundError(f"no *.jsonl.gz shards in {directory}")
     out = Dataset()
     with ProcessPoolExecutor(max_workers=min(workers, len(paths))) as pool:
-        for ds in pool.map(_load_shard, paths):
+        for ds in pool.map(_load_shard, [(p, opts) for p in paths]):
             out.extend(ds)
     return out
