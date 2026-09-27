@@ -3,20 +3,20 @@ import {AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, use
 import {fontFamily} from "./Frame";
 import STEPS from "./buildSteps.json";
 
-// ~9 s teaser: title -> the model building a flange live in FreeCAD -> end card.
+// ~8 s teaser: title -> the model building a flange live in FreeCAD -> end card.
 // Build frames are real FreeCAD renders, one per command (scripts/gui_demo.py --frames-dir).
 
-export const TEASER = {fps: 30, durationInFrames: 270, width: 1920, height: 1080};
+export const TEASER = {fps: 30, durationInFrames: 234, width: 1920, height: 1080};
 
-const ACCENT = "#2f7d5b";
-const INK = "#111614";
-const INK2 = "#4d5a54";
-const BG = "radial-gradient(1400px 900px at 78% 18%, #e3eee8 0%, #eef2ef 45%, #f7f7f4 100%)";
+const ACCENT = "#000000";
+const INK = "#000000";
+const INK2 = "#555555";
+const BG = "#ffffff";
 
-const BUILD_START = 72;
+const BUILD_START = 36;
 const PER_STEP = 4;
-const BUILD_END = BUILD_START + STEPS.length * PER_STEP; // 180
-const RESULT_START = 198;
+const BUILD_END = BUILD_START + STEPS.length * PER_STEP; // 144
+const RESULT_START = 162;
 
 const GOAL = [
   {label: "Disc Ø72 × 8", upto: 8},
@@ -36,7 +36,7 @@ const Title: React.FC = () => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   const s = (d: number) => spring({frame: f - d, fps, config: {damping: 200}});
-  const out = 1 - fade(f, 58, 72);
+  const out = 1 - fade(f, 26, 36);
   return (
     <AbsoluteFill style={{justifyContent: "center", alignItems: "center", opacity: out}}>
       <div style={{textAlign: "center", transform: `scale(${1 + 0.04 * (1 - out)})`}}>
@@ -44,10 +44,10 @@ const Title: React.FC = () => {
           fontWeight: 600, letterSpacing: 4, display: "flex", gap: 14, alignItems: "center", justifyContent: "center"}}>
           <span style={{width: 40, height: 5, borderRadius: 3, background: ACCENT}} />SYSTEM-1 MODEL FOR CAD
         </div>
-        <div style={{opacity: s(5), transform: `translateY(${(1 - s(5)) * 30}px)`, fontSize: 168, fontWeight: 800,
-          color: INK, letterSpacing: -5, marginTop: 10}}>Taiga-S1</div>
-        <div style={{opacity: s(14), transform: `translateY(${(1 - s(14)) * 20}px)`, fontSize: 40, color: INK2,
-          fontWeight: 500, marginTop: 6}}>A 1.2M-parameter model that builds CAD parts in FreeCAD</div>
+        <div style={{opacity: s(3), transform: `translateY(${(1 - s(3)) * 30}px)`, fontSize: 168, fontWeight: 800,
+          color: INK, letterSpacing: -5, marginTop: 10, lineHeight: 1.1}}>Taiga-S1</div>
+        <div style={{opacity: s(7), transform: `translateY(${(1 - s(7)) * 20}px)`, fontSize: 40, color: INK2,
+          fontWeight: 500, marginTop: 32}}>A 1.2M-parameter model that builds CAD parts in FreeCAD</div>
       </div>
     </AbsoluteFill>
   );
@@ -70,7 +70,7 @@ const Build: React.FC = () => {
         <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center"}}>
           <Img src={staticFile(`build/step_${String(step).padStart(3, "0")}.png`)}
             style={{width: 780, height: 780, objectFit: "contain", transform: `scale(${pop})`,
-              filter: "drop-shadow(0 30px 34px rgba(20,40,30,0.20)) drop-shadow(0 6px 10px rgba(20,40,30,0.14))"}} />
+              filter: "drop-shadow(0 30px 34px rgba(0,0,0,0.20)) drop-shadow(0 6px 10px rgba(0,0,0,0.14))"}} />
         </div>
       </div>
       {/* goal + command stream */}
@@ -82,8 +82,8 @@ const Build: React.FC = () => {
             const cur = i === active && !finished;
             return (
               <div key={g.label} style={{padding: "10px 18px", borderRadius: 999, fontSize: 24, fontWeight: 500,
-                border: `1.5px solid ${cur ? ACCENT : "rgba(17,22,20,0.12)"}`,
-                background: done ? ACCENT : cur ? "rgba(47,125,91,0.10)" : "rgba(255,255,255,0.7)",
+                border: `1.5px solid ${cur ? ACCENT : "rgba(0,0,0,0.12)"}`,
+                background: done ? ACCENT : cur ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.7)",
                 color: done ? "#fff" : INK}}>{done ? "✓ " : ""}{g.label}</div>
             );
           })}
@@ -100,8 +100,8 @@ const Build: React.FC = () => {
               <div key={step - visible.length + i} style={{display: "flex", justifyContent: "space-between",
                 alignItems: "center", padding: "12px 20px", borderRadius: 14, fontSize: 30,
                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                background: last ? "#fff" : "transparent", color: last ? INK : "rgba(17,22,20,0.35)",
-                boxShadow: last ? "0 8px 24px rgba(20,40,30,0.10)" : "none",
+                background: last ? "#fff" : "transparent", color: last ? INK : "rgba(0,0,0,0.35)",
+                boxShadow: last ? "0 8px 24px rgba(0,0,0,0.10)" : "none",
                 border: last ? `1.5px solid ${ACCENT}` : "1.5px solid transparent"}}>
                 <span>{pretty(a)}</span>
                 {last && <span style={{fontSize: 22, color: ACCENT, fontFamily}}>~1 ms</span>}
@@ -123,7 +123,7 @@ const Result: React.FC = () => {
       opacity: fade(f, RESULT_START, RESULT_START + 8)}}>
       <Img src={staticFile(`build/step_${String(STEPS.length).padStart(3, "0")}.png`)}
         style={{width: 700, height: 700, objectFit: "contain", opacity: s(0), transform: `scale(${0.94 + 0.06 * s(0)})`,
-          filter: "drop-shadow(0 30px 34px rgba(20,40,30,0.20)) drop-shadow(0 6px 10px rgba(20,40,30,0.14))"}} />
+          filter: "drop-shadow(0 30px 34px rgba(0,0,0,0.20)) drop-shadow(0 6px 10px rgba(0,0,0,0.14))"}} />
       <div>
         <div style={{opacity: s(4), transform: `translateY(${(1 - s(4)) * 24}px)`, fontSize: 150, fontWeight: 800,
           color: INK, letterSpacing: -5}}>Taiga-S1</div>
@@ -145,7 +145,7 @@ const Result: React.FC = () => {
 export const Teaser: React.FC = () => (
   <AbsoluteFill style={{background: BG, fontFamily}}>
     <AbsoluteFill style={{opacity: 0.35,
-      backgroundImage: "linear-gradient(rgba(20,40,30,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(20,40,30,0.06) 1px, transparent 1px)",
+      backgroundImage: "linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)",
       backgroundSize: "60px 60px"}} />
     <Title />
     <Build />

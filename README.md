@@ -4,7 +4,7 @@
 
 **A 1.2M-parameter model that builds CAD parts in FreeCAD.** Weights: [huggingface.co/shhivv/taiga-s1](https://huggingface.co/shhivv/taiga-s1).
 
-*Taiga-S1 is an experiment in whether small, fast decision models can be useful for computer-use agents: a planner decides what to do, and a tiny model handles the step-by-step execution. FreeCAD is the testbed.*
+*Taiga-S1 is an experiment in whether small, fast decision models can be useful for computer-use agents: a planner decides what to do, and a tiny model handles the step-by-step execution. FreeCAD is the testbed. The next step is the same approach for applications without a scripting API, using the operating system's accessibility tree as the interface.*
 
 Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an ordered list of features like *"plate 40×30×10 → Ø6 hole at (10, 0) → polar pattern ×6 → fillet the top edges"*. It builds the part command by command: select a plane, sketch, draw, constrain, pad, pattern, fillet. At every step it reads FreeCAD's live state and scores the commands currently available, in a single forward pass (~1 ms on CPU). No LLM, no vision model, no screenshots.
 
