@@ -14,7 +14,9 @@ tags:
 
 ![Taiga-S1: parts the model built in FreeCAD](assets/cover.png)
 
-**A 1.2M-parameter model that drives FreeCAD, one command at a time.**
+**A 1.2M-parameter model that builds CAD parts in FreeCAD.**
+
+*Taiga-S1 is an experiment in whether small, fast decision models can be useful for computer-use agents: a planner decides what to do, and a tiny model handles the step-by-step execution. FreeCAD is the testbed.*
 
 Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an ordered list of features like *"plate 40×30×10 → Ø6 hole at (10, 0) → polar pattern ×6 → fillet the top edges"*. It builds the part command by command: select a plane, sketch, draw, constrain, pad, pattern, fillet. At every step it reads FreeCAD's live state (feature tree, selection, sketch constraints, workbench) and picks the next command from the ones currently available.
 
@@ -25,8 +27,7 @@ Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an or
 
 ## Results
 
-![Parts built correctly vs. goal length](assets/length_light.png#hf-light-mode-only)
-![Parts built correctly vs. goal length](assets/length_dark.png#hf-dark-mode-only)
+![Parts built correctly vs. goal length](assets/length.png)
 
 | Goal | Built correctly | With 20% random actions injected |
 |---|---|---|
@@ -41,8 +42,7 @@ Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an or
 
 ## What made it generalize
 
-![What made it generalize: 11-intent goals](assets/ablation_light.png#hf-light-mode-only)
-![What made it generalize: 11-intent goals](assets/ablation_dark.png#hf-dark-mode-only)
+![What made it generalize](assets/ablation.png)
 
 1. **Randomized position IDs during training** ([Ruoss et al. 2023](https://arxiv.org/abs/2305.16843)). Position numbers the model had never seen were what broke it on longer parts.
 2. **Coupled ordinals.** Goal item *k* and the *k*-th feature in the tree share an index ([position coupling](https://arxiv.org/abs/2405.20671)).

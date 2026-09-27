@@ -141,3 +141,9 @@ class GuiSession(HeadlessSession):
             view = gdoc.ActiveView
             if view is not None and hasattr(view, "setActiveObject"):
                 view.setActiveObject("pdbody", self.body)
+            # Like PartDesign's own commands: only the tip (and a sketch in edit) stays visible.
+            tip = self.body.Tip
+            for obj in self.body.Group:
+                vo = getattr(obj, "ViewObject", None)
+                if vo is not None and obj.TypeId != "App::Origin":
+                    vo.Visibility = obj == tip or obj.Name == self.meta.edit

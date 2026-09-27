@@ -51,13 +51,19 @@ def main() -> None:
     ap.add_argument("--delay", type=float, default=0.4, help="seconds between steps (for watching)")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--out", default="runs/gui_demo")
+    ap.add_argument("--goals", help="JSON file of named goals ({name: goal}); use with --name")
+    ap.add_argument("--name", help="which goal from --goals to build")
     ap.add_argument("--background", default="Current", help='screenshot background, e.g. "Transparent"')
     args = ap.parse_args()
 
     model = load_checkpoint(args.model) if args.model.endswith(".pt") else from_pretrained(args.model)
     policy = Policy(model, "cpu")
     env = SocketEnv(args.port)
-    r = env.call({"op": "reset", "level": args.level, "split": args.split, "seed": args.seed})
+    if args.goals:
+        spec = json.loads(Path(args.goals).read_text())[args.name]
+        r = env.call({"op": "reset", "goal": spec, "start": {"doc_open": True, "workbench": "PartDesignWorkbench"}})
+    else:
+        r = env.call({"op": "reset", "level": args.level, "split": args.split, "seed": args.seed})
     goal = Goal.from_json(r["goal"])
     print("goal:", " -> ".join(f"{f.kind}{json.dumps(f.params)}" for f in goal.features))
     print("start:", r["start"], "budget:", r["budget"])
@@ -84,7 +90,7 @@ def main() -> None:
     sc = env.call({"op": "score"})
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
-    tag = f"L{args.level}_{args.split}_{args.seed}"
+    tag = args.name if args.goals else f"L{args.level}_{args.split}_{args.seed}"
     saved = env.call({"op": "save", "fcstd": str(out / f"{tag}.FCStd"), "png": str(out / f"{tag}.png"),
                       "background": args.background, "width": 1600, "height": 1600})
     success = done and sc["match"]

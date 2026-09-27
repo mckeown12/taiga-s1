@@ -25,12 +25,12 @@ length = {
         {"name": "Taiga-S1", "values": [mean([clean(final, f"iid-L{i}") for i in (1, 2, 3)]), clean(final, "len-L4"),
                                           clean(final, "len2-L5"), clean(final, "len3-L6"), clean(stress, "len4-L7"),
                                           clean(stress, "len5-L8"), clean(stress, "len6-L9")]},
-        {"name": "Previous model (v2)", "values": [mean([clean(v2_iid, f"L{i}") for i in (1, 2, 3)]), clean(v2_old, "len-L4"),
+        {"name": "Before the fixes", "values": [mean([clean(v2_iid, f"L{i}") for i in (1, 2, 3)]), clean(v2_old, "len-L4"),
                                                     clean(v2_new, "len2-L5"), clean(v2_old, "len3-L6"), clean(v2_new, "len4-L7"),
                                                     None, None]},
     ],
 }
-rows = [("v2 architecture", ["A_abs_s0", "A_abs_s1"]), ("+ randomized positions", ["B_rand_s0", "B_rand_s1"]),
+rows = [("Before the fixes", ["A_abs_s0", "A_abs_s1"]), ("+ randomized positions", ["B_rand_s0", "B_rand_s1"]),
         ("+ coupled ordinals", ["C_rand_ord_s0", "C_rand_ord_s1", "C_rand_ord_s2"]),
         ("+ modular done-head policy", ["L_done_s0", "L_done_s1", "L_done_s2"])]
 ablation = []
@@ -46,7 +46,8 @@ print("wrote", out)
 
 parts = ROOT / "viz/public/parts"
 parts.mkdir(parents=True, exist_ok=True)
-for name in ["L3_comp3_5", "L3_iid_7", "L4_len_44", "L3_iid_37"]:
-    im = Image.open(ROOT / "runs/cover" / f"{name}.png").convert("RGBA")
+# Showcase parts built live by the model in the FreeCAD GUI (scripts/gui_demo.py --goals runs/showcase/goals.json)
+for name in ["enclosure", "flange", "slotted_wheel", "hex_nut"]:
+    im = Image.open(ROOT / "runs/showcase" / f"{name}.png").convert("RGBA")
     im.crop(im.getchannel("A").getbbox()).save(parts / f"{name}.png")
 print("parts ->", parts)

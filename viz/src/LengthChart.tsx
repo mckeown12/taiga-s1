@@ -17,7 +17,7 @@ export const LengthChart: React.FC<{mode: "light" | "dark"}> = ({mode}) => {
   return (
     <Frame t={t} title="Parts built correctly vs. goal length"
       subtitle="Clean success in live FreeCAD · 100 goals per point (60 beyond 11 features)"
-      legend={[{label: "Taiga-S1", color: t.s1}, {label: "Previous model (v2)", color: t.s2}]}>
+      legend={[{label: "Taiga-S1", color: t.s1}, {label: "Before the fixes", color: t.s2}]}>
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} style={{fontFamily, overflow: "visible"}}>
         <rect x={L} y={T - 8} width={band} height={H - T - B + 8} rx={10} fill={t.band} />
         <text x={L + band / 2} y={y(0) - 14} textAnchor="middle" fontSize={13} fontWeight={600} fill={t.ink3}

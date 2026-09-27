@@ -13,7 +13,7 @@ export const AblationChart: React.FC<{mode: "light" | "dark"}> = ({mode}) => {
   const x = (v: number) => L + (v / 100) * (W - L - R);
   return (
     <Frame t={t} title="What made it generalize"
-      subtitle="Clean success on 11-feature goals · bar = mean over training seeds, dots = individual seeds">
+      subtitle="Parts built correctly on 11-feature goals · average of the training runs for each step">
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} style={{fontFamily, overflow: "visible"}}>
         {[0, 25, 50, 75, 100].map((v) => (
           <g key={v}>
@@ -33,13 +33,8 @@ export const AblationChart: React.FC<{mode: "light" | "dark"}> = ({mode}) => {
               {w > 0 ? (
                 <path d={`M${L},${cy - h / 2} H${L + w - 6} a6,6 0 0 1 6,6 V${cy + h / 2 - 6} a6,6 0 0 1 -6,6 H${L} Z`}
                   fill={t.s1} opacity={r.final ? 1 : 0.78} />
-              ) : (
-                <rect x={L} y={cy - 1} width={4} height={2} fill={t.s1} />
-              )}
-              {r.seeds.length > 1 && r.seeds.map((s, k) => (
-                <circle key={k} cx={x(s)} cy={cy} r={6} fill={t.card} stroke={t.ink} strokeWidth={2} />
-              ))}
-              <text x={x(Math.max(r.mean, ...r.seeds)) + 18} y={cy + 6} fontSize={17} fontWeight={600} fill={t.ink}>
+              ) : null}
+              <text x={x(r.mean) + 16} y={cy + 6} fontSize={17} fontWeight={600} fill={t.ink}>
                 {Math.round(r.mean)}%</text>
             </g>
           );

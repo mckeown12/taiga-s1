@@ -2,7 +2,9 @@
 
 ![Taiga-S1: parts the model built in FreeCAD](release/hf/assets/cover.png)
 
-**A 1.2M-parameter model that drives FreeCAD, one command at a time.** Weights: [huggingface.co/shhivv/taiga-s1](https://huggingface.co/shhivv/taiga-s1).
+**A 1.2M-parameter model that builds CAD parts in FreeCAD.** Weights: [huggingface.co/shhivv/taiga-s1](https://huggingface.co/shhivv/taiga-s1).
+
+*Taiga-S1 is an experiment in whether small, fast decision models can be useful for computer-use agents: a planner decides what to do, and a tiny model handles the step-by-step execution. FreeCAD is the testbed.*
 
 Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an ordered list of features like *"plate 40×30×10 → Ø6 hole at (10, 0) → polar pattern ×6 → fillet the top edges"*. It builds the part command by command: select a plane, sketch, draw, constrain, pad, pattern, fillet. At every step it reads FreeCAD's live state and scores the commands currently available, in a single forward pass (~1 ms on CPU). No LLM, no vision model, no screenshots.
 
@@ -15,7 +17,7 @@ The Python package is named `freecad_s1`.
 
 ## Results
 
-![Parts built correctly vs. goal length](release/hf/assets/length_light.png)
+![Parts built correctly vs. goal length](release/hf/assets/length.png)
 
 | Goal | Built correctly | With 20% random actions injected |
 |---|---|---|
@@ -43,7 +45,7 @@ valid commands ──► ActionEncoder ─► options ─► decoder (active goa
 
 ### What made it generalize
 
-![What made it generalize: 11-intent goals](release/hf/assets/ablation_light.png)
+![What made it generalize: 11-intent goals](release/hf/assets/ablation.png)
 
 The ablations were motivated by the literature on length and compositional generalization. Each variant was trained the same way (SFT, 3 epochs, same data):
 

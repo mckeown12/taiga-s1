@@ -24,7 +24,7 @@
         ]
       },
       {
-        "name": "Previous model (v2)",
+        "name": "Before the fixes",
         "values": [
           100.0,
           0.0,
@@ -39,7 +39,7 @@
   },
   "ablation": [
     {
-      "label": "v2 architecture",
+      "label": "Before the fixes",
       "seeds": [
         0.0,
         0.0
