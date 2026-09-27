@@ -21,7 +21,7 @@ tags:
 Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an ordered list of features like *"plate 40×30×10 → Ø6 hole at (10, 0) → polar pattern ×6 → fillet the top edges"*. It builds the part command by command: select a plane, sketch, draw, constrain, pad, pattern, fillet. At every step it reads FreeCAD's live state (feature tree, selection, sketch constraints, workbench) and picks the next command from the ones currently available.
 
 - **Tiny and fast.** 1.2M parameters, trained from scratch, ~1 ms per decision on a CPU. No LLM, no vision model, no screenshots.
-- **Generalizes to longer parts.** Trained on parts with at most 5 features, it builds 11-feature parts (~55 commands) with 100% success and 17-feature parts at 95%. The previous version scored 0% at 6+ features.
+- **Handles longer goals than it trained on.** Trained on goals of up to 5 features, it completed all 100 held-out 11-feature goals (~55 commands) and 95% of 17-feature goals.
 - **Recovers from mistakes.** With 20% of its actions replaced by random ones, it notices the damage, undoes it and finishes 86–100% of parts.
 - **Runs in the real FreeCAD app.** It drives the FreeCAD GUI over a local socket and builds parts live.
 
@@ -38,7 +38,7 @@ Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an or
 | 13 / 15 / 17 features | 100 / 100 / 95% | – |
 | Feature combinations never seen in training | 90–100% | 94–97% |
 
-"Built correctly" means the model finished and the final solid matches the target exactly (volumetric IoU ≥ 0.99, no stray objects). Each row is 100 fresh goals in FreeCAD 1.1 (60 per length for 13–17 features). Per-step accuracy against the teacher's choices is 99.8%.
+"Built correctly" means the model finished and the final solid matches the target exactly (volumetric IoU ≥ 0.99, no stray objects). Each row is 100 fresh synthetic goals (same feature vocabulary as training, longer or recombined) in FreeCAD 1.1 (60 per length for 13–17 features). Per-step accuracy against the teacher's choices is 99.8%.
 
 ## What made it generalize
 

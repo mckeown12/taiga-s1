@@ -8,7 +8,7 @@
 
 Taiga-S1 is the fast "System 1" layer for a CAD agent. You give it a goal, an ordered list of features like *"plate 40×30×10 → Ø6 hole at (10, 0) → polar pattern ×6 → fillet the top edges"*. It builds the part command by command: select a plane, sketch, draw, constrain, pad, pattern, fillet. At every step it reads FreeCAD's live state and scores the commands currently available, in a single forward pass (~1 ms on CPU). No LLM, no vision model, no screenshots.
 
-- **Generalizes far past its training data.** Trained on parts with at most 5 features, it builds 11-feature parts (~55 commands) at 100% and 17-feature parts at 95%. The previous version scored 0% at 6+ features.
+- **Handles longer goals than it trained on.** Trained on goals of up to 5 features, it completed all 100 held-out 11-feature goals (~55 commands) and 95% of 17-feature goals.
 - **Recovers from mistakes.** With 20% of its actions replaced by random ones, it notices the damage, undoes it and still finishes 86–100% of parts.
 - **Handles unseen combinations.** Feature pairings that never appear in training: 90–100%.
 - **Drives the real FreeCAD app** over a local socket and builds parts live.
@@ -28,7 +28,7 @@ The Python package is named `freecad_s1`.
 | 13 / 15 / 17 features | 100 / 100 / 95% | – |
 | Feature combinations never seen in training | 90–100% | 94–97% |
 
-"Built correctly" means the model emitted `Done`, the final solid matches the target (volumetric IoU ≥ 0.99), and no stray objects remain. Rows are 100 fresh goals in FreeCAD 1.1, except the 13–17-feature row, which is 60 per length. Per-step accuracy against the teacher's choices is 99.8%. The evidence is in `results/`.
+"Built correctly" means the model emitted `Done`, the final solid matches the target (volumetric IoU ≥ 0.99), and no stray objects remain. Rows are 100 fresh synthetic goals (same feature vocabulary as training, longer or recombined) in FreeCAD 1.1, except the 13–17-feature row, which is 60 per length. Per-step accuracy against the teacher's choices is 99.8%. The evidence is in `results/`.
 
 ## How it works
 
@@ -40,7 +40,7 @@ valid commands ──► ActionEncoder ─► options ─► decoder (active goa
 
 - **State as tokens.** A snapshot turns the document into a typed token sequence: session globals, one token per feature-tree object in build order (sketch geometry and constraints, feature parameters), the selection, the last 8 commands, the target part and the goal items.
 - **Commands as options.** Candidates are the commands valid right now, the headless equivalent of FreeCAD's toolbars plus `isCommandActive`. Each one gets a score in one pass, so the action space can vary step to step.
-- **A modular "done?" policy.** Each goal item asks "am I built yet?" by matching its ordinal against the feature tree, and the model acts on the first one that isn't. The decision depends only on the state and that one active item, which is why it scales to goals much longer than it trained on.
+- **A modular "done?" policy.** Each goal item asks "am I built yet?" by matching its ordinal against the feature tree, and the model acts on the first one that isn't. The decision depends only on the state and that one active item, which is what lets it handle goals longer than the ones it trained on.
 - **Command type only.** The model picks the command. Numeric values (sizes, depths, radii, counts) come from the goal item via `runtime/params.py`.
 
 ### What made it generalize

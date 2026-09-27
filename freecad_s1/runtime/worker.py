@@ -85,11 +85,15 @@ class Worker:
                 import FreeCADGui as Gui
 
                 view = Gui.getDocument(s.doc.Name).ActiveView
-                view.viewIsometric()
-                view.fitAll()
+                if req.get("camera"):  # fixed camera, e.g. for step-by-step frames
+                    view.setCamera(req["camera"])
+                else:
+                    view.viewIsometric()
+                    view.fitAll()
                 view.saveImage(req["png"], int(req.get("width", 1400)), int(req.get("height", 1000)),
                                req.get("background", "Current"))  # e.g. "Transparent"
                 out["png"] = req["png"]
+                out["camera"] = view.getCamera()
             return out
         raise ValueError(f"unknown op {op}")
 

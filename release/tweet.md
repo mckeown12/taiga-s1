@@ -2,7 +2,7 @@
 
 Taiga-S1: a 1.2M-param model, trained from scratch, that drives FreeCAD. No LLM, no screenshots: it reads the feature tree and picks the next command in ~1ms.
 
-Trained on parts with ≤5 features, it builds 11-feature parts (~55 commands) at 100%, and 17-feature parts at 95%. My previous version: 0%.
+An experiment in small System-1 decision models for computer use: a planner says what to build, a tiny model handles the step-by-step.
 
 🤗 https://huggingface.co/shhivv/taiga-s1
 
@@ -21,7 +21,7 @@ Trained on parts with ≤5 features, it builds 11-feature parts (~55 commands) a
 - "coupled ordinals" linking each goal item to the tree
 - a modular policy: each goal item asks "am I built yet?", and the model acts on the first that isn't
 
-→ 11-feature parts: 0% → 100%
+→ it now completes goals twice as long as anything it trained on
 
 5/ What didn't: a progress-pointer head, length-invariant features, and a softmax pointer, which has to learn "next = built + 1" and broke past the trained length.
 

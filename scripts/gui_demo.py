@@ -53,6 +53,8 @@ def main() -> None:
     ap.add_argument("--out", default="runs/gui_demo")
     ap.add_argument("--goals", help="JSON file of named goals ({name: goal}); use with --name")
     ap.add_argument("--name", help="which goal from --goals to build")
+    ap.add_argument("--frames-dir", help="save a frame after every step (needs --camera-from)")
+    ap.add_argument("--camera-from", help="JSON file with a saved camera (from a previous run's .camera.json)")
     ap.add_argument("--background", default="Current", help='screenshot background, e.g. "Transparent"')
     args = ap.parse_args()
 
@@ -80,6 +82,14 @@ def main() -> None:
         steps += 1
         print(f"{steps:3d}  {action:34s} {'✓' if ok else '✗ expert: ' + expert[0]}  ({ms:.1f} ms, {len(actions)} valid)")
         s = env.call({"op": "step", "action": action})
+        if args.frames_dir:
+            cam = json.loads(Path(args.camera_from).read_text())["camera"]
+            fdir = Path(args.frames_dir).resolve()
+            fdir.mkdir(parents=True, exist_ok=True)
+            env.call({"op": "save", "png": str(fdir / f"step_{steps:03d}.png"), "camera": cam,
+                      "background": "Transparent", "width": 1200, "height": 1200})
+            with open(fdir / "steps.jsonl", "a") as fh:
+                fh.write(json.dumps({"step": steps, "action": action}) + "\n")
         if s["info"]["error"]:
             print("      error:", s["info"]["error"])
         if s["info"]["done"] or not s["expert"]:
@@ -97,6 +107,8 @@ def main() -> None:
     print(f"\nresult: {'SUCCESS' if success else 'FAIL'}  IoU {sc['iou']:.4f}  done {done}  steps {steps}  "
           f"agreement {agree}/{steps}  wall {time.time() - t0:.1f}s")
     print("saved:", saved.get("fcstd"), saved.get("png"))
+    if saved.get("camera"):
+        (out / f"{tag}.camera.json").write_text(json.dumps({"camera": saved["camera"]}))
 
 
 if __name__ == "__main__":
