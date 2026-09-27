@@ -97,33 +97,33 @@ def test_generalization_variant_forward_and_aux():
 
 
 def test_modular_decision_ignores_other_intents():
-    """With the modular policy, action scores depend only on the state and the
-    active intent: appending more intents after it must not change them."""
+    """Released design (done-head modular policy): with the active intent
+    fixed and the target descriptors equal, appending more intents after it
+    changes neither the action scores nor the earlier intents' done-logits."""
+    from freecad_s1.model.featurize import SEG_GOAL
     from freecad_s1.model.net import S1Config
     from freecad_s1.schema import Goal, GoalFeature
 
     torch.manual_seed(0)
-    model = S1Model(S1Config(modular=True, ordinal=True, invariant_numerics=True)).eval()
+    model = S1Model(S1Config(modular=True, pointer="done", ordinal=True, pos_mode="rand",
+                             invariant_numerics=True, index_eval="identity", type_dropout=0.15)).eval()
     opts = model.cfg.feature_opts()
     base = [GoalFeature("base_box", {"w": 20, "d": 10, "h": 5}), GoalFeature("hole", {"r": 1, "x": 0, "y": 0})]
     short = Goal(base, scale=20)
     long = Goal(base + [GoalFeature("fillet_top", {"r": 1}), GoalFeature("chamfer_top", {"size": 1})], scale=20)
+    long.target = short.target  # same target descriptors: only the intent list differs
     acts = ["PartDesign_Pad", "Std_Undo", "Done", "Select:Face+Z"]
-    b1 = collate([make_example(_state(3), short, acts, progress=1, **opts)])
-    b2 = collate([make_example(_state(3), long, acts, progress=1, **opts)])
-    b1["progress"][:] = -1
-    b2["progress"][:] = -1
-    # force the pointer to intent 1 in both by checking its argmax is used
-    l1, _, p1 = model(b1, return_aux=True)
-    l2, _, p2 = model(b2, return_aux=True)
-    goal_slots1 = (b1["seg"][0] == 6).nonzero().flatten()
-    goal_slots2 = (b2["seg"][0] == 6).nonzero().flatten()
-    if p1.argmax(-1).item() == goal_slots1[1].item() and p2.argmax(-1).item() == goal_slots2[1].item():
-        assert torch.allclose(l1, l2, atol=1e-4)
-    # per-intent pointer scores do not depend on the other intents
-    assert torch.allclose(p1[0, goal_slots1[:2]], p2[0, goal_slots2[:2]], atol=1e-4)
-    loss = torch.nn.functional.cross_entropy(p2, torch.tensor([goal_slots2[1].item()]))
-    assert torch.isfinite(loss)
+    b1 = collate([make_example(_state(3), short, acts, **opts)])
+    b2 = collate([make_example(_state(3), long, acts, **opts)])
+    slots1 = (b1["seg"][0] == SEG_GOAL).nonzero().flatten()
+    slots2 = (b2["seg"][0] == SEG_GOAL).nonzero().flatten()
+    b1["force_intent"] = slots1[1:2]
+    b2["force_intent"] = slots2[1:2]
+    with torch.no_grad():
+        l1, _, d1 = model(b1, return_aux=True)
+        l2, _, d2 = model(b2, return_aux=True)
+    assert torch.allclose(l1, l2, atol=1e-4), (l1, l2)
+    assert torch.allclose(d1[0, slots1[:2]], d2[0, slots2[:2]], atol=1e-4)
 
 
 def test_done_head_pointer_picks_first_not_done_and_trains():

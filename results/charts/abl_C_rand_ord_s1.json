@@ -1,0 +1,19 @@
+{
+  "episodes": {
+    "len3-L6": {
+      "episodes": 60,
+      "success": 0.6333,
+      "clean_success": 0.55,
+      "zero_deviation_success": 0.4167,
+      "clean_within_expert_plus_2": 0.55,
+      "mean_iou": 0.9846,
+      "on_policy_agreement": 0.9297,
+      "steps_over_expert": 1.003,
+      "outcomes": {
+        "success": 38,
+        "wrong_geometry": 22
+      }
+    },
+    "overall_success": 0.6333
+  }
+}

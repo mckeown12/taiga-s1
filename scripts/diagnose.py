@@ -1,4 +1,8 @@
 """Find the first step where the policy leaves the expert's acceptable set."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
 import argparse, collections, json, torch
 from freecad_s1.model.net import load_checkpoint
 from freecad_s1.rollout import Policy

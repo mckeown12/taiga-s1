@@ -68,13 +68,20 @@ def offline_metrics(model: S1Model, ds: Dataset, device: torch.device, batch_siz
     }
 
 
+# Seed offsets keep suites that share a level (iid-L3, comp, comp2, comp3) on disjoint seeds.
+SPLIT_SEED_OFFSET = {"iid": 0, "comp": 10_000, "comp2": 20_000, "comp3": 30_000, "len": 0}
+
 SUITES = {
     "iid": [(1, "iid"), (2, "iid"), (3, "iid")],  # training distribution, fresh goals
     "comp": [(3, "comp")],  # held-out feature combinations (goals.heldout_composition)
-    "comp2": [(3, "comp2")],  # confirmation: boss_box -> mirror, never generated in training
+    "comp2": [(3, "comp2")],  # held-out pair boss_box -> mirror (seen by the model before the M design)
+    "comp3": [(3, "comp3")],  # held-out pair pocket_rect -> polar_pattern; evaluated once, on the final model
     "len": [(4, "len")],  # held-out length: 6-7 intents, training has <= 5
-    "len2": [(5, "len")],  # held-out length: 8-10 intents (~2x the training maximum)
-    "len3": [(6, "len")],  # held-out length: 11-13 intents (~2.5x); confirmation suite
+    "len2": [(5, "len")],  # held-out length: 8-9 intents
+    "len3": [(6, "len")],  # held-out length: 11 intents (2.2x the training maximum)
+    "len4": [(7, "len")],  # stress: 13 intents
+    "len5": [(8, "len")],  # stress: 15 intents
+    "len6": [(9, "len")],  # stress: 17 intents
 }
 
 
@@ -85,16 +92,16 @@ def online_metrics(model: S1Model, device: torch.device, suites=("iid", "comp", 
     from .runtime.client import VecEnv
 
     policy = Policy(model, device)
-    rng = random.Random(seed_base)
     vec = VecEnv(workers)
     results = []
     try:
         for suite in suites:
             for level, split in SUITES[suite]:
+                base = seed_base + level * 100_000 + SPLIT_SEED_OFFSET.get(split, 0)
+                rng = random.Random(base)  # per-suite perturbation stream: subsets reproduce
                 for start in range(0, episodes, workers):
                     n = min(workers, episodes - start)
-                    specs = [{"level": level, "split": split, "seed": seed_base + level * 100_000 + start + i}
-                             for i in range(n)]
+                    specs = [{"level": level, "split": split, "seed": base + start + i} for i in range(n)]
                     if n < workers:  # keep lockstep simple: idle workers replay a spec, results dropped
                         specs += [specs[0]] * (workers - n)
                     batch = run_episodes(policy, vec, specs, sample=sample, rng=rng, perturb=perturb)[:n]
@@ -104,6 +111,17 @@ def online_metrics(model: S1Model, device: torch.device, suites=("iid", "comp", 
     finally:
         vec.close()
     return summarize(results)
+
+
+def _rates(rs) -> dict:
+    return {
+        "episodes": len(rs),
+        "success": round(float(np.mean([r.success for r in rs])), 4),
+        "clean_success": round(float(np.mean([r.clean for r in rs])), 4),
+        # clean success with no wrong policy decision along the way (injected steps excluded)
+        "zero_deviation_success": round(float(np.mean([r.clean and r.deviations == 0 for r in rs])), 4),
+        "clean_within_expert_plus_2": round(float(np.mean([r.clean and r.steps <= r.expert_steps + 2 for r in rs])), 4),
+    }
 
 
 def summarize(results) -> dict:
@@ -116,14 +134,17 @@ def summarize(results) -> dict:
         for r in rs:
             outcomes[r.outcome] += 1
         ok = [r for r in rs if r.success]
+        rules = defaultdict(list)
+        for r in rs:
+            if r.rule:
+                rules[r.rule].append(r)
         out[level if isinstance(level, str) else f"L{level}"] = {
-            "episodes": len(rs),
-            "success": round(np.mean([r.success for r in rs]), 4),
-            "clean_success": round(np.mean([r.clean for r in rs]), 4),
+            **_rates(rs),
             "mean_iou": round(float(np.mean([r.iou for r in rs])), 4),
             "on_policy_agreement": round(float(np.mean([r.agreement for r in rs])), 4),
             "steps_over_expert": round(float(np.mean([r.steps / max(r.expert_steps, 1) for r in ok])), 3) if ok else None,
             "outcomes": dict(outcomes),
+            **({"by_rule": {k: _rates(v) for k, v in sorted(rules.items())}} if rules else {}),
         }
     out["overall_success"] = round(float(np.mean([r.success for r in results])), 4) if results else 0.0
     return out
@@ -131,7 +152,7 @@ def summarize(results) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--ckpt", required=True)
+    ap.add_argument("--ckpt", required=True, help=".pt checkpoint, exported directory, or Hugging Face repo id")
     ap.add_argument("--data", help="held-out datagen directory for per-step accuracy")
     ap.add_argument("--episodes", type=int, default=100, help="online episodes per level (0 to skip)")
     ap.add_argument("--suites", nargs="+", default=["iid", "comp", "len"], choices=list(SUITES),
@@ -146,7 +167,12 @@ def main() -> None:
     ap.add_argument("--out", help="write the report JSON here")
     args = ap.parse_args()
     device = select_device(args.device)
-    model = load_checkpoint(args.ckpt, device)
+    if args.ckpt.endswith(".pt"):
+        model = load_checkpoint(args.ckpt, device)
+    else:  # exported directory or Hugging Face repo id
+        from .model.net import from_pretrained
+
+        model = from_pretrained(args.ckpt, device)
     if args.index_eval:
         model.cfg.index_eval = args.index_eval
     report = {}

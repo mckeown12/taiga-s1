@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import torch
 
 from .data import Dataset
+from .goals import heldout_composition
 from .model.featurize import collate, make_example
 from .model.net import S1Model
 from .runtime.client import Episode, VecEnv
@@ -32,6 +33,19 @@ class Policy:
         probs = torch.softmax(logits, -1).cpu()
         return [probs[i, : len(a)] for i, a in enumerate(action_lists)]
 
+    @torch.no_grad()
+    def score(self, state, goal, actions: list[str], temperature: float | None = None) -> dict[str, float]:
+        """Probability of each candidate in `actions` (any list of command
+        strings, e.g. what the interface currently offers), highest first.
+        Uses the model's calibrated temperature unless one is given."""
+        temperature = temperature or self.model.cfg.temperature
+        self.model.eval()
+        batch = collate([make_example(state, goal, actions, **self.model.cfg.feature_opts())])
+        batch = {k: v.to(self.device) for k, v in batch.items()}
+        logits, _ = self.model(batch)
+        probs = torch.softmax(logits[0, : len(actions)].float().cpu() / temperature, -1)
+        return dict(sorted(zip(actions, probs.tolist()), key=lambda t: -t[1]))
+
     def act(self, states, goals, action_lists, sample: bool = False) -> list[str]:
         out = []
         for p, acts in zip(self.distributions(states, goals, action_lists), action_lists):
@@ -52,6 +66,8 @@ class EpisodeResult:
     agreement: float  # fraction of steps where the policy picked an expert-acceptable action
     outcome: str  # success | wrong_geometry | budget | unrecoverable
     features: list[str]
+    rule: str | None = None  # held-out composition rule the goal matches, if any
+    deviations: int = 0  # policy steps whose action was not expert-acceptable (injected steps excluded)
 
 
 def run_episodes(policy: Policy, vec: VecEnv, specs: list[dict], sample: bool = False,
@@ -113,5 +129,5 @@ def run_episodes(policy: Policy, vec: VecEnv, specs: list[dict], sample: bool = 
         outcome = "success" if success else ("wrong_geometry" if e.done else e.outcome)
         results.append(EpisodeResult(e.level, success, success and e.outcome == "done_clean", sc["iou"], e.steps,
                                      e.budget, n, e.agree / max(ps, 1), outcome,
-                                     [f.kind for f in e.goal.features]))
+                                     [f.kind for f in e.goal.features], heldout_composition(e.goal), ps - e.agree))
     return results

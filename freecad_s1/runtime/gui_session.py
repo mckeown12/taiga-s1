@@ -32,7 +32,7 @@ import FreeCADGui as Gui
 from ..actions import CATALOGUE, enumerate_actions
 from ..goals import StartSpec
 from ..schema import Goal, SelItem, State
-from .session import HeadlessSession, snapshot
+from .session import HeadlessSession, describe_selection, snapshot
 
 # Pseudo-commands that have no Gui command of their own.
 _PSEUDO_PREFIXES = ("Select:", "Done")
@@ -81,28 +81,7 @@ class GuiSession(HeadlessSession):
         return st
 
     def _gui_selection(self) -> list[SelItem]:
-        items = []
-        for sx in Gui.Selection.getSelectionEx():
-            obj = sx.Object
-            subs = list(sx.SubElementNames)
-            if obj.TypeId == "App::Plane":
-                n = obj.Placement.Rotation.multVec(App.Vector(0, 0, 1))
-                items.append(SelItem("plane", obj.Name, obj.TypeId, subs, (n.x, n.y, n.z), 0.0, 0))
-            elif subs and all(s.startswith("Face") for s in subs):
-                f = obj.Shape.getElement(subs[0])
-                u0, u1, v0, v1 = f.ParameterRange
-                n = f.normalAt((u0 + u1) / 2, (v0 + v1) / 2)
-                items.append(SelItem("face", obj.Name, obj.TypeId, subs, (n.x, n.y, n.z),
-                                     f.CenterOfMass.dot(n), len(subs)))
-            elif subs and all(s.startswith("Edge") for s in subs):
-                items.append(SelItem("edges", obj.Name, obj.TypeId, subs, (0.0, 0.0, 0.0), 0.0, len(subs)))
-            elif not subs and obj.TypeId.startswith("PartDesign::"):
-                items.append(SelItem("feature", obj.Name, obj.TypeId, [], (0.0, 0.0, 0.0), 0.0, 0))
-            elif not subs and obj.TypeId == "Sketcher::SketchObject":
-                items.append(SelItem("sketch", obj.Name, obj.TypeId, [], (0.0, 0.0, 0.0), 0.0, 0))
-            else:
-                items.append(SelItem("other", obj.Name, obj.TypeId, subs, (0.0, 0.0, 0.0), 0.0, len(subs)))
-        return items
+        return [describe_selection(sx.Object, sx.SubElementNames) for sx in Gui.Selection.getSelectionEx()]
 
     def valid_actions(self, state: State | None = None) -> list[str]:
         state = state or self.state()

@@ -30,7 +30,7 @@ from .model.net import load_checkpoint, save_checkpoint, select_device
 from .runtime.client import VecEnv
 from .schema import Goal, State
 
-RL_SEED_BASE = 500_000
+RL_SEED_BASE = 20_000_000  # disjoint from datagen/DAgger (<1e6), test (1e6+), probes, calibration (7e6+)
 
 
 @dataclass

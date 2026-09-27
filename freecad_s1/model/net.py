@@ -1,4 +1,4 @@
-"""FreeCAD-S1: option-attention next-action scorer (~1M params, from scratch).
+"""Taiga-S1: option-attention next-action scorer (~1M params, from scratch).
 
     state tokens ──► StateEncoder (transformer) ──► context C (B, L, d)
     candidate actions ──► ActionEncoder ──► options O (B, N, d)
@@ -92,6 +92,9 @@ class S1Config:
     # this probability in training, so an unseen pairing of a specific type
     # (e.g. Hole then Mirrored) can fall back on its seen category.
     type_dropout: float = 0.0
+    # Softmax temperature for reported probabilities (Policy.score); fitted
+    # post hoc by scripts/calibrate.py. Does not change the argmax action.
+    temperature: float = 1.0
 
     def feature_opts(self) -> dict:
         """Featurization options this model was trained with."""
@@ -250,6 +253,8 @@ class S1Model(nn.Module):
         if self.training:  # teacher forcing on the gold active intent where labeled
             gold = batch["progress"]
             chosen = torch.where(gold >= 0, gold, chosen)
+        if "force_intent" in batch:  # testing/analysis: override the active intent (token slot)
+            chosen = batch["force_intent"]
         onehot = torch.nn.functional.one_hot(chosen, context.shape[1]).bool()
         intent = context[torch.arange(context.shape[0], device=context.device), chosen]
         options = self.action_encoder(batch) + self.intent_proj(intent)[:, None, :]
@@ -340,4 +345,32 @@ def load_checkpoint(path: str | Path, device: str | torch.device = "cpu") -> S1M
     if key in state and state[key].shape[0] < MAX_POS:  # checkpoints from before the 128-slot table
         state[key] = torch.cat([state[key], torch.zeros(MAX_POS - state[key].shape[0], state[key].shape[1])])
     model.load_state_dict(state)
+    return model.to(device).eval()
+
+
+def save_pretrained(directory: str | Path, model: S1Model, metadata: dict | None = None) -> Path:
+    """Export as `model.safetensors` + `config.json` (Hugging Face layout)."""
+    from safetensors.torch import save_file
+
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    state = {k: v.detach().cpu().contiguous() for k, v in model.state_dict().items()}
+    save_file(state, directory / "model.safetensors", metadata={"format": "pt"})
+    (directory / "config.json").write_text(json.dumps(
+        {"architecture": "S1Model", "config": asdict(model.cfg), "metadata": metadata or {}}, indent=2))
+    return directory
+
+
+def from_pretrained(name_or_path: str | Path, device: str | torch.device = "cpu") -> S1Model:
+    """Load from a local directory or a Hugging Face Hub repo id."""
+    from safetensors.torch import load_file
+
+    path = Path(name_or_path)
+    if not path.is_dir():
+        from huggingface_hub import snapshot_download
+
+        path = Path(snapshot_download(str(name_or_path), allow_patterns=["model.safetensors", "config.json"]))
+    cfg = json.loads((path / "config.json").read_text())["config"]
+    model = S1Model(S1Config(**cfg))
+    model.load_state_dict(load_file(path / "model.safetensors"))
     return model.to(device).eval()

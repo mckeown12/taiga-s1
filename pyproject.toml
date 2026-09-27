@@ -1,9 +1,9 @@
 [project]
-name = "freecad-s1"
+name = "taiga-s1"
 version = "0.1.0"
 description = "System-1 next-action model for FreeCAD: option-attention scorer over structured CAD state"
 requires-python = ">=3.11"
-dependencies = ["torch>=2.3", "numpy"]
+dependencies = ["torch>=2.3", "numpy", "safetensors", "huggingface_hub"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

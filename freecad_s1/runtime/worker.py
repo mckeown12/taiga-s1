@@ -24,14 +24,19 @@ from dataclasses import asdict
 
 from ..goals import StartSpec
 from ..schema import Goal
-from .episode import build_target, new_episode, score, step_budget
+from ..goals import sample_start
+from .episode import build_target, new_episode, sample_feasible_goal, score, step_budget
 from .fcenv import PROTOCOL_PREFIX as PREFIX
 from .session import HeadlessSession, iou
 
 
 class Worker:
-    def __init__(self) -> None:
-        self.session = HeadlessSession()
+    def __init__(self, session=None, target_session=None) -> None:
+        """`session` is driven by the policy; targets are built in
+        `target_session` when given (the GUI server keeps target construction
+        in a hidden headless session so it never shows up in the window)."""
+        self.session = session or HeadlessSession()
+        self.target_session = target_session
         self.target = None
         self.last_iou = 0.0
 
@@ -44,10 +49,17 @@ class Worker:
         op = req["op"]
         s = self.session
         if op == "reset":
+            builder = self.target_session or s
             if "goal" in req:
                 goal = Goal.from_json(req["goal"])
-                self.target = build_target(s, goal)
+                self.target = build_target(builder, goal)
                 start = StartSpec(**req.get("start", {}))
+                s.reset(goal, start)
+            elif self.target_session is not None:
+                rng = random.Random(int(req["seed"]))
+                goal, self.target = sample_feasible_goal(builder, int(req["level"]), rng,
+                                                         split=req.get("split", "train"))
+                start = sample_start(rng, int(req["level"]))
                 s.reset(goal, start)
             else:
                 goal, start, self.target = new_episode(s, int(req["level"]), random.Random(int(req["seed"])),
@@ -64,6 +76,21 @@ class Worker:
             return out
         if op == "score":
             return score(s, self.target)
+        if op == "save":  # save the document (and, in the GUI, a screenshot)
+            out = {}
+            if s.doc is not None and req.get("fcstd"):
+                s.doc.saveAs(req["fcstd"])
+                out["fcstd"] = req["fcstd"]
+            if req.get("png"):
+                import FreeCADGui as Gui
+
+                view = Gui.getDocument(s.doc.Name).ActiveView
+                view.viewIsometric()
+                view.fitAll()
+                view.saveImage(req["png"], int(req.get("width", 1400)), int(req.get("height", 1000)),
+                               req.get("background", "Current"))  # e.g. "Transparent"
+                out["png"] = req["png"]
+            return out
         raise ValueError(f"unknown op {op}")
 
     def serve(self) -> None:

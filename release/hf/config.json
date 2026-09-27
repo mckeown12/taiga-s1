@@ -1,0 +1,51 @@
+{
+  "architecture": "S1Model",
+  "config": {
+    "width": 128,
+    "heads": 4,
+    "enc_layers": 3,
+    "dec_layers": 2,
+    "ff": 384,
+    "dropout": 0.1,
+    "id_dropout": 0.1,
+    "pos_mode": "rand",
+    "pos_table": 48,
+    "ordinal": true,
+    "ord_table": 12,
+    "progress_head": false,
+    "invariant_numerics": true,
+    "modular": true,
+    "pointer": "done",
+    "index_eval": "identity",
+    "type_dropout": 0.15,
+    "temperature": 2.554
+  },
+  "metadata": {
+    "name": "taiga-s1",
+    "version": "0.3.0",
+    "trained_on": "synthetic FreeCAD PartDesign episodes",
+    "calibration": {
+      "states": 11300,
+      "episodes": 256,
+      "T": 2.554,
+      "held_out_T1": {
+        "n": 5573,
+        "acc": 0.9551,
+        "nll": 0.3595,
+        "ece": 0.0416,
+        "mean_conf": 0.9921,
+        "mean_conf_when_wrong": 0.9705,
+        "n_wrong": 250
+      },
+      "held_out_T": {
+        "n": 5573,
+        "acc": 0.9551,
+        "nll": 0.1785,
+        "ece": 0.0272,
+        "mean_conf": 0.9545,
+        "mean_conf_when_wrong": 0.8915,
+        "n_wrong": 250
+      }
+    }
+  }
+}

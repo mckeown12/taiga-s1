@@ -770,35 +770,43 @@ def _feature_numbers(obj, scale: float) -> dict:
     return num
 
 
+def describe_selection(obj, subs: list[str]) -> SelItem:
+    """Describe one selected object (+ sub-elements) the same way for the
+    headless session and the live GUI, so the model sees identical inputs."""
+    subs = list(subs)
+    item = SelItem(kind="other", object=obj.Name, object_type=obj.TypeId, subs=subs, count=len(subs))
+    if obj.TypeId == "App::Plane" and not subs:
+        n = obj.Placement.Rotation.multVec(V(0, 0, 1))
+        item.kind, item.normal = "plane", (n.x, n.y, n.z)
+    elif not subs and obj.TypeId in SOLID_FEATURE_TYPES:
+        item.kind = "feature"
+    elif not subs and obj.TypeId == "Sketcher::SketchObject":
+        item.kind = "sketch"
+    elif subs and subs[0].startswith("Face"):
+        face = obj.Shape.getElement(subs[0])
+        n = _face_normal(face)
+        item.kind, item.normal, item.offset = "face", (n.x, n.y, n.z), face.CenterOfMass.dot(n)
+    elif subs and subs[0].startswith("Edge"):
+        item.kind = "edges"
+        d = V(0, 0, 0)
+        for sub in subs:
+            e = obj.Shape.getElement(sub)
+            ld = line_direction(e)
+            if ld is not None:
+                d = d + V(abs(ld.x), abs(ld.y), abs(ld.z))
+        if d.Length > 0:
+            d.normalize()
+        item.normal = (d.x, d.y, d.z)
+        item.offset = sum(obj.Shape.getElement(x).CenterOfMass.z for x in subs) / len(subs)
+    return item
+
+
 def selection_items(s) -> list[SelItem]:
     items = []
-    for obj_name, subs, arg in s.sel_refs:
+    for obj_name, subs, _arg in s.sel_refs:
         obj = s.doc.getObject(obj_name)
-        if obj is None:
-            continue
-        item = SelItem(kind="other", object=obj_name, object_type=obj.TypeId, subs=list(subs), count=len(subs))
-        if arg.startswith("Plane:"):
-            n = obj.Placement.Rotation.multVec(V(0, 0, 1))
-            item.kind, item.normal = "plane", (n.x, n.y, n.z)
-        elif arg == "Tip":
-            item.kind = "feature"
-        elif subs and subs[0].startswith("Face"):
-            face = obj.Shape.getElement(subs[0])
-            n = _face_normal(face)
-            item.kind, item.normal, item.offset = "face", (n.x, n.y, n.z), face.CenterOfMass.dot(n)
-        elif subs and subs[0].startswith("Edge"):
-            item.kind = "edges"
-            d = V(0, 0, 0)
-            for sub in subs:
-                e = obj.Shape.getElement(sub)
-                ld = line_direction(e)
-                if ld is not None:
-                    d = d + V(abs(ld.x), abs(ld.y), abs(ld.z))
-            if d.Length > 0:
-                d.normalize()
-            item.normal = (d.x, d.y, d.z)
-            item.offset = sum(obj.Shape.getElement(x).CenterOfMass.z for x in subs) / len(subs)
-        items.append(item)
+        if obj is not None:
+            items.append(describe_selection(obj, subs))
     return items
 
 

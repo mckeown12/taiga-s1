@@ -171,7 +171,7 @@ def sample_goal(level: int, rng: random.Random) -> Goal:
     for _ in range(50):
         goal = _composite(rng, base, level)
         n = len(goal.features)
-        if level <= 3 and n <= 5 or level == 4 and n >= 6 or level == 5 and n >= 8 or level >= 6 and n >= 11:
+        if level <= 3 and n <= 5 or level == 4 and n >= 6 or level == 5 and n >= 8 or level >= 6 and n >= 2 * level - 1:
             return goal
     return goal
 
@@ -180,7 +180,8 @@ def _composite(rng: random.Random, base: GoalFeature, level: int) -> Goal:
     components: list[tuple[list[GoalFeature], bool]] = []
     if level >= 4 or rng.random() < 0.5:
         components.append(([_on_top(rng, rng.choice(["boss_cyl", "boss_box"]), base)], False))
-    for _ in range(4 if level >= 6 else 3 if level >= 5 else 2 if level >= 4 or rng.random() < 0.35 else 1):
+    # cut groups: level 4 -> 2, 5 -> 3, 6 -> 4 (11 intents), 7 -> 5 (13), 8 -> 6 (15), 9 -> 7 (17)
+    for _ in range(level - 2 if level >= 4 else 2 if rng.random() < 0.35 else 1):
         components.append(_cut_group(rng, base))
     if level <= 3:
         rng.shuffle(components)
@@ -224,8 +225,11 @@ def _cut_group(rng: random.Random, base: GoalFeature) -> tuple[list[GoalFeature]
 
 
 # ---------------------------------------------------------------------------
-# Generalization splits. Every feature kind and every adjacent pair of kinds
-# still occurs in training; only these *combinations* are withheld.
+# Generalization splits. Every feature kind occurs in training; the rules
+# below name combinations and adjacent pairs that never do. The first two are
+# excluded from training by filtering; the last two are pairs the training
+# sampler cannot produce at all (it only mirrors hole/hole_std/pocket_rect/
+# boss_cyl and only patterns hole/hole_std).
 # ---------------------------------------------------------------------------
 
 PATTERNS = {"polar_pattern", "linear_pattern"}
@@ -239,10 +243,14 @@ def heldout_composition(goal: Goal) -> str | None:
     for a, b in zip(kinds, kinds[1:]):
         if a == "hole_std" and b == "mirror":
             return "mirrored_hole_std"  # mirror seen on hole/pocket/boss, hole_std seen patterned
+        if a == "boss_box" and b == "mirror":
+            return "mirrored_boss_box"  # suite comp2
+        if a == "pocket_rect" and b in PATTERNS:
+            return "patterned_pocket_rect"  # suite comp3
     return None
 
 
-SPLITS = ("train", "iid", "comp", "comp2", "len")
+SPLITS = ("train", "iid", "comp", "comp2", "comp3", "len")
 
 
 def goal_in_split(goal: Goal, split: str) -> bool:
@@ -273,9 +281,31 @@ def _mirrored_boss_box_goal(rng: random.Random) -> Goal:
     return Goal(feats, level=3, scale=_scale(base))
 
 
+def _patterned_pocket_goal(rng: random.Random) -> Goal:
+    """Suite "comp3": a rectangular pocket followed by a polar pattern, a pair
+    the training sampler never produces. Optional boss_cyl before and dressup
+    after; <= 5 intents."""
+    base = _base(rng, ["base_cyl", "base_hex"])
+    r = base.params["r"]
+    feats = [base]
+    if rng.random() < 0.5:
+        feats.append(_on_top(rng, "boss_cyl", base))
+    n = rng.randint(3, 8)
+    rho = round(r * _u(rng, 0.45, 0.65), 1)
+    side = max(1.0, min(2 * rho * math.sin(math.pi / n) * 0.5, r * 0.25))
+    feats.append(GoalFeature("pocket_rect", {"w": _u(rng, 1.0, side), "d": _u(rng, 1.0, side), "x": rho, "y": 0.0,
+                                             "depth": _u(rng, 1.0, base.params["h"] * 0.6)}))
+    feats.append(GoalFeature("polar_pattern", {"n": float(n)}))
+    if len(feats) < 5 and rng.random() < 0.7:
+        feats.append(_dressup(rng, rng.choice(["fillet_top", "chamfer_top"]), base))
+    return Goal(feats, level=3, scale=_scale(base))
+
+
 def sample_split_goal(split: str, level: int, rng: random.Random, tries: int = 2000) -> Goal:
     if split == "comp2":
         return _mirrored_boss_box_goal(rng)
+    if split == "comp3":
+        return _patterned_pocket_goal(rng)
     for _ in range(tries):
         goal = sample_goal(level, rng)
         if goal_in_split(goal, split):

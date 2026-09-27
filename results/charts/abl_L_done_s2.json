@@ -1,0 +1,18 @@
+{
+  "episodes": {
+    "len3-L6": {
+      "episodes": 60,
+      "success": 1.0,
+      "clean_success": 1.0,
+      "zero_deviation_success": 1.0,
+      "clean_within_expert_plus_2": 1.0,
+      "mean_iou": 1.0,
+      "on_policy_agreement": 1.0,
+      "steps_over_expert": 1.0,
+      "outcomes": {
+        "success": 60
+      }
+    },
+    "overall_success": 1.0
+  }
+}

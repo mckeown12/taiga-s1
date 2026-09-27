@@ -1,0 +1,34 @@
+{
+  "episodes": {
+    "len-L4": {
+      "episodes": 100,
+      "success": 0.11,
+      "clean_success": 0.0,
+      "zero_deviation_success": 0.0,
+      "clean_within_expert_plus_2": 0.0,
+      "mean_iou": 0.9648,
+      "on_policy_agreement": 0.7486,
+      "steps_over_expert": 0.936,
+      "outcomes": {
+        "budget": 74,
+        "wrong_geometry": 15,
+        "success": 11
+      }
+    },
+    "len3-L6": {
+      "episodes": 100,
+      "success": 0.0,
+      "clean_success": 0.0,
+      "zero_deviation_success": 0.0,
+      "clean_within_expert_plus_2": 0.0,
+      "mean_iou": 0.8686,
+      "on_policy_agreement": 0.6091,
+      "steps_over_expert": null,
+      "outcomes": {
+        "wrong_geometry": 9,
+        "budget": 91
+      }
+    },
+    "overall_success": 0.055
+  }
+}

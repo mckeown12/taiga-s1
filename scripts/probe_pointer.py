@@ -1,6 +1,10 @@
 """Replay expert trajectories and measure, per step, (a) the modular pointer's
 accuracy against the expert progress index and (b) action accuracy, split by
 intent index. Isolates pointer errors from policy errors."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
 import argparse, collections, torch
 from freecad_s1.model.featurize import collate, make_example
 from freecad_s1.model.net import load_checkpoint

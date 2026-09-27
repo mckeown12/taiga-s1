@@ -1,0 +1,8 @@
+# Run inside the FreeCAD GUI: starts the Taiga-S1 socket server.
+# Set FREECAD_S1_REPO to the repository root before launching FreeCAD.
+import os, sys
+repo = os.environ["FREECAD_S1_REPO"]
+if repo not in sys.path:
+    sys.path.insert(0, repo)
+from freecad_s1.runtime.gui_server import start
+start()
