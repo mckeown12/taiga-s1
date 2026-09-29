@@ -56,6 +56,16 @@ The ablations were motivated by the literature on length and compositional gener
 
 Also tried without gains: a progress-estimation head alone ([Ma et al. 2019](https://arxiv.org/abs/1901.03035)) and length-invariant numeric features.
 
+### Extension: `hook_sweep` (wall hooks)
+
+The base vocabulary has no sweep/loft/revolve, so a J-hook (flat arm, rounded bend, tip curving back toward the wall — e.g. a baby-gate hook) was inexpressible. The fork (`hook-sweep` branch) adds one goal kind and one atomic action:
+
+- **Goal kind** `hook_sweep` with params `{y, h, r, t, w, d, x}` (start height, arm length, bend centerline radius, strap thickness, width, tip length, lateral offset) — all reuse existing `GOAL_PARAM_KEYS`.
+- **Action** `PartDesign_Sweep`: the executor builds the strap as an `XZ` profile (arm → outer arc → tip → rounded cap → inner arc) extruded in `Y`, stores it as a `Part::Feature` operand and fuses it into the body with a `PartDesign::Boolean` (Type=Fuse), so it stays in the feature chain (undo/recompute safe).
+- The model predicts only *when* to fire the sweep; all numerics come from the goal, as usual.
+
+Adding the action grows the vocabularies (51→52 actions, 66→67 words), so pre-trained checkpoints are incompatible — retrain from scratch. Recipe (CPU, ~3–4h total): 7k episodes (4.5k standard + 2.5k hook, `--hook-episodes`), 10 SFT epochs, 4 DAgger rounds including long levels (`--dagger-levels 1,2,3,4,5,6,7`) and held-out compositions (`--dagger-comp-episodes`). Result: 60/60 held-out hook goals, IoU 1.0, and no regression on the original iid/comp/length suites (see `mybuild/NOTES.md`).
+
 ## Training
 
 - **Data.** 24k synthetic modeling sessions scripted in headless FreeCAD, about 590k decisions. A state-based scripted teacher labels the set of acceptable next commands at every step. Random mistakes are mixed into 60% of sessions so the model also learns to recover (undo off-plan changes, re-select, switch back to the right workbench).
