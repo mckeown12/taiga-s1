@@ -1,0 +1,16 @@
+{
+  "flange_w": 46.0,
+  "flange_d": 46.0,
+  "flange_t": 4.0,
+  "flange_fillet": 3.0,
+  "boss_r": 13.0,
+  "boss_h": 20.0,
+  "boss_root_fillet": 2.0,
+  "hook_w": 7.0,
+  "hook_t": 3.5,
+  "hook_arm": 20.0,
+  "hook_r": 5.5,
+  "hook_tip": 10.0,
+  "hole_r": 2.15,
+  "hole_dx": 17.0
+}

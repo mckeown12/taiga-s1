@@ -1,0 +1,56 @@
+{
+  "features": [
+    {
+      "kind": "base_box",
+      "params": {
+        "w": 48.0,
+        "d": 58.0,
+        "h": 5.0
+      }
+    },
+    {
+      "kind": "hole",
+      "params": {
+        "r": 2.15,
+        "x": -14.0,
+        "y": 22.0
+      }
+    },
+    {
+      "kind": "hole",
+      "params": {
+        "r": 2.15,
+        "x": 14.0,
+        "y": 22.0
+      }
+    },
+    {
+      "kind": "boss_box",
+      "params": {
+        "w": 35.0,
+        "d": 40.0,
+        "x": 0.0,
+        "y": -5.0,
+        "h": 25.0
+      }
+    },
+    {
+      "kind": "pocket_rect",
+      "params": {
+        "w": 22.0,
+        "d": 28.0,
+        "x": 0.0,
+        "y": -5.0,
+        "depth": 21.0
+      }
+    },
+    {
+      "kind": "fillet_top",
+      "params": {
+        "r": 1.0
+      }
+    }
+  ],
+  "level": 4,
+  "scale": 58.0
+}

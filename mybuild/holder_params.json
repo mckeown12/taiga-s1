@@ -1,0 +1,16 @@
+{
+  "flange_w": 46.0,
+  "flange_d": 48.0,
+  "flange_t": 8.0,
+  "hole_r": 2.15,
+  "hole_dx": 18.5,
+  "hole_dy": 18.5,
+  "cup_r": 21.0,
+  "cup_h": 24.0,
+  "cup_dx": 0.0,
+  "cup_dy": 0.0,
+  "cav_w": 18.0,
+  "cav_d": 18.0,
+  "cav_depth": 20.0,
+  "rim_fillet_r": 1.0
+}

@@ -1,0 +1,26 @@
+{
+  "architecture": "S1Model",
+  "config": {
+    "width": 128,
+    "heads": 4,
+    "enc_layers": 3,
+    "dec_layers": 2,
+    "ff": 384,
+    "dropout": 0.1,
+    "id_dropout": 0.1,
+    "pos_mode": "abs",
+    "pos_table": 48,
+    "ordinal": false,
+    "ord_table": 12,
+    "progress_head": false,
+    "invariant_numerics": false,
+    "modular": false,
+    "pointer": "softmax",
+    "index_eval": "expected",
+    "type_dropout": 0.0,
+    "temperature": 1.0
+  },
+  "metadata": {
+    "note": "taiga-s1 + hook_sweep (baby-gate J-hook)"
+  }
+}
