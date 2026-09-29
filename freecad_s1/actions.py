@@ -59,6 +59,7 @@ CATALOGUE: dict[str, ActionSpec] = {
         _spec("PartDesign_Mirrored", "pattern", "PartDesign"),
         _spec("PartDesign_LinearPattern", "pattern", "PartDesign"),
         _spec("PartDesign_PolarPattern", "pattern", "PartDesign"),
+        _spec("PartDesign_Sweep", "additive", "PartDesign"),
         _spec("Part_Box", "part_primitive", "Part"),
         _spec("Part_Cylinder", "part_primitive", "Part"),
         _spec("Sketcher_CreateRectangle", "sketch_geometry", "sketch"),
@@ -88,6 +89,7 @@ SOLID_FEATURE_TYPES = {
     "PartDesign::Pad", "PartDesign::Pocket", "PartDesign::Revolution", "PartDesign::Groove",
     "PartDesign::Hole", "PartDesign::Fillet", "PartDesign::Chamfer", "PartDesign::Draft",
     "PartDesign::Thickness", "PartDesign::Mirrored", "PartDesign::LinearPattern", "PartDesign::PolarPattern",
+    "PartDesign::Boolean",
 }
 
 _CAMEL = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[+\-|@]?[A-Z0-9]+|[+\-|@]")
@@ -188,6 +190,8 @@ def enumerate_actions(state: State) -> list[str]:
                 out += ["PartDesign_Fillet", "PartDesign_Chamfer"]
             if has_solid and "face" in sel_kinds:
                 out += ["PartDesign_Thickness", "PartDesign_Draft"]
+            if has_solid:
+                out.append("PartDesign_Sweep")
             if "feature" in sel_kinds:
                 out += ["PartDesign_Mirrored", "PartDesign_LinearPattern", "PartDesign_PolarPattern"]
     elif wb == "PartWorkbench":

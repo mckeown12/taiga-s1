@@ -51,6 +51,9 @@ RECIPES: dict[str, Recipe] = {
     "fillet_vertical": Recipe("PartDesign_Fillet", select="Edges|Z"),
     "chamfer_top": Recipe("PartDesign_Chamfer", select="Edges@Face+Z"),
     "shell": Recipe("PartDesign_Thickness", select="Face+Z"),
+    # J-hook strap: one atomic sweep (profile + fuse), no sketch and no
+    # selection — every dimension comes from the goal intent's params.
+    "hook_sweep": Recipe("PartDesign_Sweep"),
 }
 
 
@@ -250,7 +253,7 @@ def heldout_composition(goal: Goal) -> str | None:
     return None
 
 
-SPLITS = ("train", "iid", "comp", "comp2", "comp3", "len")
+SPLITS = ("train", "iid", "comp", "comp2", "comp3", "len", "hook")
 
 
 def goal_in_split(goal: Goal, split: str) -> bool:
@@ -301,7 +304,57 @@ def _patterned_pocket_goal(rng: random.Random) -> Goal:
     return Goal(feats, level=3, scale=_scale(base))
 
 
+def _sample_hook_once(rng: random.Random) -> Goal:
+    """Baby-gate wall hook: square flange + two through holes + center boss
+    + J-hook strap. Structure is fixed (it is *the* part); dimensions vary in
+    a printable band around the reference 46x46x5 / boss r13x20 / strap
+    w7 t3.5 arm20 r5.5 tip10 design."""
+    w = _u(rng, 40, 60)
+    d = w
+    fh = _u(rng, 3, 8)
+    margin = _u(rng, 4, 7)
+    dx = round(w / 2 - margin, 1)
+    hr = _u(rng, 1.5, 2.5)
+    br_hi = round(dx - hr - 1.5, 1)          # hole must clear the boss
+    br_lo = min(br_hi, max(9.0, br_hi - 5.0))
+    if br_lo >= br_hi:
+        raise ValueError("boss/hole clearance infeasible")
+    br = _u(rng, br_lo, br_hi)
+    bh = _u(rng, 8, 24)
+    t = _u(rng, 2.5, 5.0)
+    r_hi = min(8.0, (br + 2 - t / 2) / 2)    # tip may overhang the boss by ~2mm
+    if r_hi <= 4.0:
+        raise ValueError("hook radius infeasible")
+    r = _u(rng, 4.0, r_hi)
+    w_hi = min(9.0, 2 * (r - t / 2) - 0.5)   # strap width fits the U interior
+    if w_hi <= 4.0:
+        raise ValueError("strap width infeasible")
+    wdp = _u(rng, 4.0, w_hi)
+    arm = _u(rng, 10.0, 22.0)
+    tip = _u(rng, 6.0, max(6.1, min(arm, 15.0)))
+    z0 = round(fh + bh - min(1.5, bh * 0.2), 1)  # sink the arm into the boss
+    feats = [
+        GoalFeature("base_box", {"w": w, "d": d, "h": fh}),
+        GoalFeature("hole", {"r": hr, "x": -dx, "y": 0.0}),
+        GoalFeature("hole", {"r": hr, "x": dx, "y": 0.0}),
+        GoalFeature("boss_cyl", {"r": br, "x": 0.0, "y": 0.0, "h": bh}),
+        GoalFeature("hook_sweep", {"y": z0, "h": arm, "r": r, "t": t, "w": wdp, "d": tip, "x": 0.0}),
+    ]
+    return Goal(feats, level=3, scale=_scale(feats[0]))
+
+
+def sample_hook_goal(rng: random.Random, tries: int = 50) -> Goal:
+    for _ in range(tries):
+        try:
+            return _sample_hook_once(rng)
+        except ValueError:
+            continue
+    raise ValueError("no feasible hook goal")
+
+
 def sample_split_goal(split: str, level: int, rng: random.Random, tries: int = 2000) -> Goal:
+    if split == "hook":
+        return sample_hook_goal(rng)
     if split == "comp2":
         return _mirrored_boss_box_goal(rng)
     if split == "comp3":

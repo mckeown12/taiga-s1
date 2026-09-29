@@ -74,3 +74,12 @@ def dressup_value(f: GoalFeature, command: str) -> float:
 def pattern_spec(f: GoalFeature, command: str, scale: float) -> dict[str, float]:
     n = int(f.params.get("n", 3 if command == "PartDesign_PolarPattern" else 2))
     return {"n": max(2, n), "length": f.params.get("length", round(scale * 0.4, 1))}
+
+
+def sweep_spec(f: GoalFeature) -> dict[str, float]:
+    """J-hook strap dimensions for `hook_sweep` (params.py convention:
+    y = strap start height z0, h = arm, r = centerline radius, t = thickness,
+    w = strap width, d = tip drop, x = centerline X offset)."""
+    p = f.params
+    return {"z0": p.get("y", 0.0), "arm": p["h"], "r": p["r"], "t": p["t"],
+            "w": p["w"], "tip": p["d"], "x0": p.get("x", 0.0)}

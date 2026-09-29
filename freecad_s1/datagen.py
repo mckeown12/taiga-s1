@@ -35,7 +35,7 @@ from pathlib import Path
 NOISE_LEVELS = [0.0, 0.0, 0.1, 0.2, 0.3]
 
 
-def run_shard(out: Path, shard: int, episodes: list[int], seed: int) -> None:
+def run_shard(out: Path, shard: int, episodes: list[int], seed: int, hook_episodes: int = 0) -> None:
     from .runtime.episode import GoalBuildError, new_episode, score, step_budget
     from .runtime.session import HeadlessSession
 
@@ -45,36 +45,46 @@ def run_shard(out: Path, shard: int, episodes: list[int], seed: int) -> None:
     n_records = n_eps = n_success = 0
     t0 = time.time()
     with gzip.open(path, "wt") as fh:
+
+        def run_episode(ep: str, level: int, goal, start, target) -> None:
+            nonlocal n_records, n_eps, n_success
+            noise = rng.choice(NOISE_LEVELS)
+            budget = step_budget(goal, start) * (3 if noise else 1)
+            fh.write(json.dumps({"ep": ep, "goal": goal.to_json()}) + "\n")
+            for t in range(budget):
+                state = session.state()
+                acceptable = session.expert()
+                if not acceptable:
+                    break  # unrecoverable (beyond FreeCAD's undo history)
+                actions = session.valid_actions(state)
+                rec = {"ep": ep, "level": level, "step": t, "state": state.to_json(),
+                       "actions": actions, "acceptable": acceptable, "noise": noise,
+                       "progress": session.progress()}
+                fh.write(json.dumps(rec, separators=(",", ":")) + "\n")
+                n_records += 1
+                if rng.random() < noise:
+                    choices = [a for a in actions if a != "Done"]
+                    action = rng.choice(choices)
+                else:
+                    action = rng.choice(acceptable)
+                if session.step(action)["done"]:
+                    break
+            n_eps += 1
+            n_success += int(session.done and score(session, target)["match"])
+
         for level, count in enumerate(episodes, start=1):
             for k in range(count):
                 try:
                     goal, start, target = new_episode(session, level, rng)
                 except GoalBuildError:
                     continue
-                ep = f"{seed}-{shard}-{level}-{k}"
-                noise = rng.choice(NOISE_LEVELS)
-                budget = step_budget(goal, start) * (3 if noise else 1)
-                fh.write(json.dumps({"ep": ep, "goal": goal.to_json()}) + "\n")
-                for t in range(budget):
-                    state = session.state()
-                    acceptable = session.expert()
-                    if not acceptable:
-                        break  # unrecoverable (beyond FreeCAD's undo history)
-                    actions = session.valid_actions(state)
-                    rec = {"ep": ep, "level": level, "step": t, "state": state.to_json(),
-                           "actions": actions, "acceptable": acceptable, "noise": noise,
-                           "progress": session.progress()}
-                    fh.write(json.dumps(rec, separators=(",", ":")) + "\n")
-                    n_records += 1
-                    if rng.random() < noise:
-                        choices = [a for a in actions if a != "Done"]
-                        action = rng.choice(choices)
-                    else:
-                        action = rng.choice(acceptable)
-                    if session.step(action)["done"]:
-                        break
-                n_eps += 1
-                n_success += int(session.done and score(session, target)["match"])
+                run_episode(f"{seed}-{shard}-{level}-{k}", level, goal, start, target)
+        for k in range(hook_episodes):  # hook goals: same noise/start randomization
+            try:
+                goal, start, target = new_episode(session, 3, rng, split="hook")
+            except GoalBuildError:
+                continue
+            run_episode(f"{seed}-{shard}-hook-{k}", 3, goal, start, target)
     session.shutdown()
     print(json.dumps({"shard": shard, "episodes": n_eps, "records": n_records,
                       "expert_success": n_success / max(n_eps, 1), "seconds": round(time.time() - t0, 1)}))
@@ -88,9 +98,11 @@ def launch(args) -> None:
     out.mkdir(parents=True, exist_ok=True)
     per_worker = [[c // args.workers + (1 if w < c % args.workers else 0) for c in args.episodes]
                   for w in range(args.workers)]
+    hooks = [args.hook_episodes // args.workers + (1 if w < args.hook_episodes % args.workers else 0)
+             for w in range(args.workers)]
     procs = []
     for w in range(args.workers):
-        cmd = [py, "-m", "freecad_s1.datagen", "--shard", str(w), "--out", str(out), "--seed", str(args.seed),
+        cmd = [py, "-m", "freecad_s1.datagen", "--shard", str(w), str(hooks[w]), "--out", str(out), "--seed", str(args.seed),
                "--episodes", *map(str, per_worker[w])]
         procs.append(subprocess.Popen(cmd, env=freecad_env(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True))
     for p in procs:
@@ -105,14 +117,16 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
     ap.add_argument("--episodes", type=int, nargs=3, default=[1000, 1500, 2000], metavar=("L1", "L2", "L3"))
+    ap.add_argument("--hook-episodes", type=int, default=0,
+                    help="extra episodes with hook goals (flange + holes + boss + J-hook)")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--shard", type=int, default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--shard", type=int, nargs=2, default=[None, 0], metavar=("ID", "HOOK"), help=argparse.SUPPRESS)
     args = ap.parse_args()
-    if args.shard is None:
+    if args.shard[0] is None:
         launch(args)
     else:
-        run_shard(Path(args.out), args.shard, args.episodes, args.seed)
+        run_shard(Path(args.out), int(args.shard[0]), args.episodes, args.seed, int(args.shard[1]))
 
 
 if __name__ == "__main__":

@@ -82,6 +82,7 @@ SUITES = {
     "len4": [(7, "len")],  # stress: 13 intents
     "len5": [(8, "len")],  # stress: 15 intents
     "len6": [(9, "len")],  # stress: 17 intents
+    "hook": [(3, "hook")],  # baby-gate wall hook: fixed structure, fresh dimensions
 }
 
 

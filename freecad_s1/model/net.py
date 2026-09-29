@@ -35,7 +35,8 @@ NODE_CATEGORY = {
     "PartDesign::Pocket": "subtractive", "PartDesign::Groove": "subtractive", "PartDesign::Hole": "subtractive",
     "PartDesign::Fillet": "dressup", "PartDesign::Chamfer": "dressup", "PartDesign::Draft": "dressup",
     "PartDesign::Thickness": "dressup", "PartDesign::Mirrored": "pattern", "PartDesign::LinearPattern": "pattern",
-    "PartDesign::PolarPattern": "pattern", "Part::Box": "part_primitive", "Part::Cylinder": "part_primitive",
+    "PartDesign::PolarPattern": "pattern", "PartDesign::Boolean": "additive",
+    "Part::Box": "part_primitive", "Part::Cylinder": "part_primitive",
 }
 
 

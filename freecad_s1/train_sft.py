@@ -104,6 +104,12 @@ def main() -> None:
     ap.add_argument("--dagger-rounds", type=int, default=0)
     ap.add_argument("--dagger-episodes", type=int, default=240, help="episodes per level per round")
     ap.add_argument("--dagger-epochs", type=int, default=3)
+    ap.add_argument("--dagger-hook-episodes", type=int, default=0,
+                    help="hook-goal episodes per DAgger round")
+    ap.add_argument("--dagger-levels", default="1,2,3",
+                    help="comma-separated curriculum levels per round; >3 uses the 'len' split")
+    ap.add_argument("--dagger-comp-episodes", type=int, default=0,
+                    help="held-out composition episodes (split 'comp') per DAgger round")
     ap.add_argument("--dagger-workers", type=int, default=8)
     ap.add_argument("--device", default="auto")
     ap.add_argument("--seed", type=int, default=0)
@@ -148,12 +154,28 @@ def main() -> None:
                 results = []
                 beta = 0.5 ** (r + 1)  # mix expert actions early, pure policy later
                 policy = Policy(model, device)
-                for level in (1, 2, 3):
+                for level in [int(x) for x in args.dagger_levels.split(",") if x]:
+                    split = "train" if level <= 3 else "len"
                     for s in range(0, args.dagger_episodes, args.dagger_workers):
-                        specs = [{"level": level, "seed": 10_000 * (r + 1) + level * 1000 + s + i}
+                        specs = [{"level": level, "split": split,
+                                  "seed": 10_000 * (r + 1) + level * 1000 + s + i}
                                  for i in range(args.dagger_workers)]
                         assert specs[-1]["seed"] < TEST_SEED_BASE
                         results += run_episodes(policy, vec, specs, collect=collected, beta=beta, rng=rng)
+                    if args.dagger_hook_episodes:
+                        for s in range(0, args.dagger_hook_episodes, args.dagger_workers):
+                            n = min(args.dagger_workers, args.dagger_hook_episodes - s)
+                            specs = [{"level": 3, "split": "hook", "seed": 90_000 * (r + 1) + s + i}
+                                     for i in range(args.dagger_workers)]
+                            assert specs[-1]["seed"] < TEST_SEED_BASE
+                            results += run_episodes(policy, vec, specs, collect=collected, beta=beta, rng=rng)[:n]
+                    if args.dagger_comp_episodes:
+                        for s in range(0, args.dagger_comp_episodes, args.dagger_workers):
+                            n = min(args.dagger_workers, args.dagger_comp_episodes - s)
+                            specs = [{"level": 3, "split": "comp", "seed": 80_000 * (r + 1) + s + i}
+                                     for i in range(args.dagger_workers)]
+                            assert specs[-1]["seed"] < TEST_SEED_BASE
+                            results += run_episodes(policy, vec, specs, collect=collected, beta=beta, rng=rng)[:n]
                 summary = summarize(results)
                 print(f"[dagger {r}] beta {beta:.2f} rollout success {json.dumps({k: v['success'] if isinstance(v, dict) else v for k, v in summary.items()})} "
                       f"+{len(collected)} labeled states", flush=True)

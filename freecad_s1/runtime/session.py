@@ -161,6 +161,43 @@ def shape_info(shape) -> ShapeInfo:
     )
 
 
+def make_hook_strap(z0: float, w: float, t: float, arm: float, r: float, tip: float,
+                    x0: float = 0.0) -> Part.Shape:
+    """J-hook strap: flat profile in the XZ plane (offset x0), extruded along Y
+    by `w`, centered on the boss axis. The arm starts at z0 (sunk slightly into
+    the boss so the fuse is robust) and runs up `arm`; a 180-degree U-turn
+    (centerline radius `r`) brings the tip down `tip` with a rounded cap.
+    The U opens away from the wall so a gate latch slides in between arm and
+    tip and rests inside the U."""
+    y0 = -w / 2
+    ht = t / 2                       # strap half-thickness (X)
+    ri = r - ht                      # inner (U) arc radius
+    ro = r + ht                      # outer arc radius
+    xt = 2 * r                       # tip centerline X offset
+    A = V(x0 - ht, y0, z0)           # arm outer bottom
+    B = V(x0 - ht, y0, z0 + arm)     # arm outer top
+    F = V(x0 + xt + ht, y0, z0 + arm)  # tip outer top
+    E = V(x0 + xt + ht, y0, z0 + arm - tip)
+    D = V(x0 + xt - ht, y0, z0 + arm - tip)
+    C = V(x0 + xt - ht, y0, z0 + arm)
+    Bp = V(x0 + ht, y0, z0 + arm)    # arm inner top
+    Ap = V(x0 + ht, y0, z0)          # arm inner bottom
+    mid_out = V(x0 + r, y0, z0 + arm + ro)
+    mid_cap = V(x0 + xt, y0, z0 + arm - tip - ht)
+    mid_in = V(x0 + r, y0, z0 + arm + ri)
+    wire = Part.Wire([
+        Part.makeLine(A, B),
+        Part.Arc(B, mid_out, F).toShape(),
+        Part.makeLine(F, E),
+        Part.Arc(E, mid_cap, D).toShape(),
+        Part.makeLine(D, C),
+        Part.Arc(C, mid_in, Bp).toShape(),
+        Part.makeLine(Bp, Ap),
+        Part.makeLine(Ap, A),
+    ])
+    return Part.Face(wire).extrude(V(0, w, 0))
+
+
 def iou(a, b) -> float:
     """Volumetric IoU of two solids (exact, via OCC booleans)."""
     if a is None or b is None or a.isNull() or b.isNull() or not a.Solids or not b.Solids:
@@ -653,6 +690,23 @@ def ex_pattern(s: HeadlessSession, a: str) -> bool:
     return True
 
 
+def ex_sweep(s: HeadlessSession, a: str) -> bool:
+    """J-hook sweep: build the strap solid from the goal intent's params and
+    fuse it into the body through a PartDesign Boolean (Type=Fuse)."""
+    _need(s.body is not None and s.solid() is not None, "hook sweep needs a solid")
+    goal_ref = progress(s.goal, s.meta)
+    f = s.intent_for(goal_ref)
+    spec = P.sweep_spec(f)
+    strap = make_hook_strap(spec["z0"], spec["w"], spec["t"], spec["arm"], spec["r"], spec["tip"], spec["x0"])
+    _need(strap.isValid() and strap.Solids, "strap solid construction failed")
+    op = s.doc.addObject("Part::Feature", "HookStrap")
+    op.Shape = strap
+    feat = s.add_feature("PartDesign::Boolean", a, goal_ref)
+    feat.Group = [op]  # FreeCAD reparents the operand under the Boolean
+    s.finish_feature(feat)
+    return True
+
+
 def ex_part_primitive(s: HeadlessSession, a: str) -> bool:
     obj = s.doc.addObject("Part::Box" if a == "Part_Box" else "Part::Cylinder", a.split("_", 1)[1])
     s.meta.objects[obj.Name] = ObjMeta(obj.Name, "other", command=a)
@@ -670,6 +724,7 @@ EXECUTORS = {
                                        "PartDesign_Groove", "PartDesign_Hole")},
     **{a: ex_dressup for a in ("PartDesign_Fillet", "PartDesign_Chamfer", "PartDesign_Thickness", "PartDesign_Draft")},
     **{a: ex_pattern for a in ("PartDesign_Mirrored", "PartDesign_LinearPattern", "PartDesign_PolarPattern")},
+    "PartDesign_Sweep": ex_sweep,
     "Part_Box": ex_part_primitive,
     "Part_Cylinder": ex_part_primitive,
 }
@@ -681,7 +736,7 @@ PRECHECKS = {a: (lambda s, a: _constraint_target(s, a) is not None) for a in CON
 # Snapshot: FreeCAD document -> State
 # ---------------------------------------------------------------------------
 
-TREE_TYPES = {"PartDesign::Body", "Sketcher::SketchObject", "Part::Box", "Part::Cylinder"} | SOLID_FEATURE_TYPES
+TREE_TYPES = {"PartDesign::Body", "Sketcher::SketchObject", "Part::Box", "Part::Cylinder"} | SOLID_FEATURE_TYPES  # + PartDesign::Boolean via SOLID_FEATURE_TYPES
 
 
 def _sketch_numbers(sk) -> tuple[dict, dict, dict]:

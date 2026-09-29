@@ -39,6 +39,7 @@ NODE_TYPES = [
     "PartDesign::Mirrored",
     "PartDesign::LinearPattern",
     "PartDesign::PolarPattern",
+    "PartDesign::Boolean",
     "Part::Box",
     "Part::Cylinder",
 ]
@@ -81,6 +82,7 @@ GOAL_KINDS = [
     "boss_cyl", "boss_box", "hole", "hole_std", "pocket_rect",
     "polar_pattern", "linear_pattern", "mirror",
     "fillet_top", "fillet_vertical", "chamfer_top", "shell",
+    "hook_sweep",
 ]
 GOAL_PARAM_KEYS = ["w", "d", "h", "r", "ri", "ro", "x", "y", "depth", "n", "length", "size", "t"]
 GOAL_LENGTH_KEYS = {"w", "d", "h", "r", "ri", "ro", "x", "y", "depth", "length", "size", "t"}

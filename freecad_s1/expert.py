@@ -90,6 +90,8 @@ def expert_actions(goal: Goal, meta: Meta) -> list[str]:
             return missing or ["Sketcher_LeaveSketch"]
         return [recipe.feature]
 
+    if recipe.select is None:  # atomic feature (e.g. hook sweep): no selection
+        return [recipe.feature]
     if meta.selection == [recipe.select]:
         return [recipe.feature]
     return [f"Select:{recipe.select}"]
@@ -103,5 +105,10 @@ def expert_plan_length(goal: Goal, start_doc_open: bool, start_wb: str, start_bo
     n += 0 if start_body else 1
     for f in goal.features:
         r = RECIPES[f.kind]
-        n += (1 + 1 + 1 + len(r.constraints) + 1 + 1) if r.sketched else 2
+        if r.sketched:
+            n += 1 + 1 + 1 + len(r.constraints) + 1 + 1
+        elif r.select is None:
+            n += 1  # atomic feature: one command, no selection
+        else:
+            n += 2
     return n
