@@ -126,19 +126,145 @@ apply here too — train with long levels + comp episodes from round 1.
 Eval: per-step accuracy on held-out states + end-to-end IoU (STEP download,
 mesh, compare vs expert-built reference) + feature-tree agreement.
 
-## Unknowns for the Phase-0 smoke test
+## Unknowns for the Phase-0 smoke test (status after smoke test)
 
-1. Rate limits (exact numbers) — determines datagen parallelism.
-2. Document default unit + how to pin it; sketch/feature units end-to-end.
-3. PAT creation UI + scopes for a personal agent.
-4. SWEEP feature param shape (profile sketch + path sketch ids).
-5. Whether the free plan includes API access.
+1. Rate limits — **RESOLVED**: per-endpoint-family and per-account; each family
+   (features, massproperties, configuration, sketches, documents, ...) has its own
+   3000-call budget. `features` GET budget exhausted by the plane-ID sweep ->
+   `Retry-After: 35664s` (~10h). Workaround found: the `configuration` endpoint
+   (separate pool) returns `serializationVersion`, `sourceMicroversion`,
+   `libraryVersion` — everything a write call needs.
+2. Units — **RESOLVED**: wire format and mass properties are SI (m, m^3);
+   quantity parameters take an `expression` string ("10 mm") that carries units.
+3. PAT creation UI + scopes — **RESOLVED**: API key/secret from account settings;
+   HMAC signing implemented in `osapi.py` (scheme extracted from the SDK).
+4. SWEEP feature param shape — open (phase 1): spec available via the feature
+   catalogue (see WS capture technique below).
+5. Free plan API access — **RESOLVED**: works; new documents must be public
+   (`isPublic: true`) on the free plan (409 on private).
+
+## Phase-0 result: full write loop VERIFIED (sketch + extrude via pure REST)
+
+A closed-rectangle sketch on the **Top origin plane** and a 10 mm blind extrude
+were created through REST calls only (no UI, no SDK), and the resulting solid was
+verified by `massproperties`: **volume = 2.000e-6 m^3 = 2000 mm^3 exactly**
+(20 x 10 x 10 mm). The block renders live in the OnShape UI (same workspace
+session syncs the REST mutations in real time).
+
+### The three blockers and their resolutions
+
+**1. Sketch on an origin plane failed with featureStatus ERROR
+("Select a sketch plane" / param value `Item: Nothing`).**
+
+Root cause: `geometryIds` is a **read-format-only** field. The write format of
+`BTMIndividualQuery-138` uses **`deterministicIds`**; `geometryIds` in a write
+body is silently ignored, so the plane query resolved to nothing.
+
+Wire evidence (captured from the UI's websocket, see below): the UI sends
+`sketchPlane -> JDC (type "Face") -> nodeId -> "Top.planeOp"`.
+
+Working write query:
+```json
+{"btType": "BTMIndividualQuery-138", "deterministicIds": ["JDC"]}
+```
+
+**2. Origin-plane short IDs were invisible to REST.**
+
+Exhausted all 248 endpoints in the official OpenAPI spec (`GET /openapi`),
+including SDK-missing `fstable`, `featurescriptrepresentation`, `gltf` — none
+expose origin-plane geometry IDs. The UI gets them via the websocket state
+channel. Two working solutions:
+- **Fixed IDs**: origin planes have deterministic short IDs across part
+  studios: **Top = `JDC`** (verified in two different documents; wire type
+  `Face`, entity name `Top.planeOp`). Front/Right IDs can be captured the same
+  way if needed (only Top is needed for the hook: flange, boss and hook all
+  sketch on the Top plane).
+- **WebSocket capture** (general technique, used throughout):
+  `page.addInitScript` monkey-patches `window.WebSocket` to log every text
+  frame into `window.__wsLog` (list of `{ws, events:[{dir,s}]}`). Bootstrap
+  frames contain the full feature-parameter catalogue (all 97 feature types
+  with param ids, enums, unit nodeIds), the geometry ID table, and every
+  feature definition. UI operations (plane select, extrude commit) are sent
+  as operations whose frames include the relevant short IDs — e.g. plane
+  select sends `"Add entity : Sketch plane"` + `JDC` + nodeIds.
+
+**3. Stale `sourceMicroversion` -> 404 "Not found" on POST /features.**
+
+Any concurrent mutation (UI or API, another client on the same workspace)
+advances the microversion. Fix: fetch `configuration` (cheap, separate rate
+budget) immediately before each write call and use its `sourceMicroversion`,
+`serializationVersion` ("1.2.21") and `libraryVersion` (3083).
+
+### Verified write-format recipes
+
+Sketch (new feature, `POST /partstudios/d/{doc}/w/{ws}/e/{eid}/features` with
+`BTFeatureDefinitionCall-1406` wrapping a `BTMSketch-151` body):
+- lines: `BTMSketchCurveSegment-155` + `BTCurveGeometryLine-117`
+  (`pntX,pntY,dirX,dirY` in **meters**); entity/node ids are assigned by the
+  server on create (client sends md5-style ids, server echoes nodeIds back).
+- plane: `sketchPlane` = `BTMParameterQueryList-148` with
+  `[BTMIndividualQuery-138 {deterministicIds:["JDC"]}]` +
+  `disableImprinting` = `BTMParameterBoolean-144`.
+- **Constraints are optional**: 4 lines with exactly matching endpoints form a
+  closed region with zero constraints (the UI only *warns* "not fully defined"
+  and refuses interactive selection; the REST extrude of such a region works).
+
+Extrude (`BTMFeature-134` body, `featureType: "extrude"`):
+```json
+"parameters": [
+  {"btType":"BTMParameterEnum-145","enumName":"OperationDomain","value":"MODEL","namespace":"","parameterId":"domain"},
+  {"btType":"BTMParameterEnum-145","enumName":"ExtendedToolBodyType","value":"SOLID","namespace":"","parameterId":"bodyType"},
+  {"btType":"BTMParameterEnum-145","enumName":"NewBodyOperationType","value":"NEW","namespace":"","parameterId":"operationType"},
+  {"btType":"BTMParameterQueryList-148","parameterId":"entities",
+   "queries":[{"btType":"BTMIndividualSketchRegionQuery-140","featureId":"<sketch_feature_id>"}],
+   "filter": {"btType":"BTAndFilter-110","operand1":{"btType":"BTOrFilter-167",
+     "operand1":{"btType":"BTAndFilter-110",
+       "operand1":{"btType":"BTAndFilter-110",
+         "operand1":{"btType":"BTFlatSheetMetalFilter-3018","allows":"MODEL_AND_FLATTENED"},
+         "operand2":{"btType":"BTSketchObjectFilter-184","isSketchObject":true,"objectType":"ANY_SKETCH_OBJECT"}},
+       "operand2":{"btType":"BTEntityTypeFilter-124","entityType":"FACE"}},
+     "operand2":{"btType":"BTAndFilter-110",
+       "operand1":{"btType":"BTAndFilter-110",
+         "operand1":{"btType":"BTGeometryFilter-130","geometryType":"PLANE"},
+         "operand2":{"btType":"BTFlatSheetMetalFilter-3018","allows":"MODEL_ONLY"}},
+       "operand2":{"btType":"BTEntityTypeFilter-124","entityType":"FACE"}}},
+   "operand2":{"btType":"BTConstructionObjectFilter-113","isConstruction":false}}},
+  {"btType":"BTMParameterBoolean-144","value":false,"parameterId":"midplane"},
+  {"btType":"BTMParameterQuantity-147","units":"","value":0.0,"isInteger":false,"expression":"5 mm","parameterId":"thickness"},
+  {"btType":"BTMParameterBoolean-144","value":false,"parameterId":"flipWall"},
+  {"btType":"BTMParameterQuantity-147","units":"","value":0.0,"isInteger":false,"expression":"5 mm","parameterId":"thickness1"},
+  {"btType":"BTMParameterQuantity-147","units":"","value":0.0,"isInteger":false,"expression":"0 mm","parameterId":"thickness2"},
+  {"btType":"BTMParameterEnum-145","enumName":"BoundingType","value":"BLIND","namespace":"","parameterId":"endBound"},
+  {"btType":"BTMParameterBoolean-144","value":false,"parameterId":"oppositeDirection"},
+  {"btType":"BTMParameterQuantity-147","units":"","value":0.0,"isInteger":false,"expression":"10 mm","parameterId":"depth"}
+]
+```
+Notes: the region is selected by sketch `featureId` + filter tree (no region
+short ID needed); `depth`/`thickness*` use unit-bearing `expression` strings;
+`BTMFeature-134` (base type) serializes fine for extrude. Updates use
+`POST .../features/updates` with `BTUpdateFeaturesCall-1748` (returns
+`featureStates` — the feedback loop); deletes use
+`DELETE .../features/featureid/{fid}`; rollback via `POST .../features/rollback`
+(`BTSetFeatureRollbackCall-1899`, `rollbackIndex`).
+
+### Operational notes
+- Write headers: Content-Type **and** Accept must be
+  `application/vnd.onshape.v2+json;charset=utf-8;qs=0.2` (plain JSON -> 400).
+- OnShape auto-fuses overlapping features in one body (no boolean step needed,
+  unlike the FreeCAD PartDesign::Boolean workaround).
+- No undo API: recovery = delete/update feature or rollback.
+- Empty UI sketches are session-only: they have a featureId while the sketch
+  tool is open but are not persisted features (DELETE -> 404 once abandoned).
+- Both a headless and a user browser can be attached to the same workspace
+  concurrently; every REST mutation syncs into both UIs live, and UI actions
+  advance the microversion seen by the next REST call (hence the
+  configuration-refresh-before-write rule).
 
 ## Phases
 
 | phase | work | effort |
 |---|---|---|
-| 0 | account + PAT; create doc -> sketch -> extrude -> hole -> fillet -> STEP; measure latency/rate/units | half day |
+| 0 | account + PAT; create doc -> sketch -> extrude -> hole -> fillet -> STEP; measure latency/rate/units | half day | **DONE** — see "Phase-0 result" above (sketch+extrude+mass-verify via pure REST; holes/fillets/STEP export still to exercise) |
 | 1 | translator both directions; hook as test part | 1-2 weeks |
 | 2 | taiga-os1: runtime port, datagen, SFT+DAgger, eval to parity (hook + original suites) | 2-4 weeks |
 
