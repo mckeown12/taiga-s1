@@ -1,0 +1,29 @@
+{
+ "sketches": [
+  {
+   "sketch": "T3pts",
+   "featureId": "FR9g49dWWzHvCAJ_0",
+   "featuresUsed": [],
+   "geomEntities": [
+    {
+     "id": "3900f69364fb4bd5a109.start",
+     "entityType": "point",
+     "point": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "id": "3900f69364fb4bd5a109.end",
+     "entityType": "point",
+     "point": [
+      2.0,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ ]
+}

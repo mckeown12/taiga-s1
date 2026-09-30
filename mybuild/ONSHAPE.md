@@ -270,3 +270,79 @@ short ID needed); `depth`/`thickness*` use unit-bearing `expression` strings;
 
 Requires from you: an OnShape account (any plan that allows API use) and a
 personal access token.
+
+## Phase-1 result: the J-hook, built by hand via pure REST (2026-09-30)
+
+The complete wall hook (46×46×4 flange w/ 2× Ø4.3 holes, Ø26 boss to z=24,
+7×3.5 J-strap U-opening toward the wall) was built feature-by-feature through
+`osapi.py` — no UI, no SDK — in public doc `9482dce5e050c68e281c7ba7`,
+part studio `fa03fcc92b16395e6db6ad62` ("HookFinal").
+
+### Feature chain (all `POST .../features` with fresh `configuration` microversion)
+
+1. **Flange sketch** on Top plane `JDC`: 46×46 rounded rect (3 mm corner
+   fillets as 8-seg arcs) **with the two M4 holes as inner loops** (32-gons,
+   r 2.15, x=±17) — extrude has no CUT operation, so holes are inner
+   boundaries, single `NEW` extrude 4 mm.
+2. **Boss**: circle sketch (64-gon — real circles are inert as region
+   boundaries) r 13, extrude `NEW` 24 mm from z=0 (auto-fuses with flange).
+3. **Step**: 30×30×2 plate (cosmetic; sits inside the flange).
+4. **Strap** — the interesting part (datum planes are unaddressable via REST;
+   see recipe below):
+   - profile polyline of `hook_shape.make_hook` (z0=23, arm 20, U r5.5, tip
+     10) **plotted on the Top (XY) plane with y' = world-z**; all three
+     semicircles as 8-segment polygon chains (`strap_poly.py`, 30 line
+     entities, meters);
+   - extrude `NEW` 7 mm in +Z (the slab that will become the strap's width);
+   - `transform` **ROTATION 90° about the X axis** (axis = a real edge: the
+     helper ridge's bottom edge at y=0,z=0; `oppositeDirection: true` to get
+     (y,z)→(−z,y));
+   - `transform` **TRANSLATION_3D dy=+3.5 mm** to center the 7 mm width on y=0.
+5. **Helper ridge** (kept, functional): 40×0.3×4.3 pad providing the X-axis
+   edge used as the rotation axis (datum planes' short IDs can't be obtained
+   via REST — cPlane features don't expose their plane ID and the Front/Right
+   origin planes aren't discoverable; `MID_PLANE` of two lines is unsupported
+   in the kernel, `LINE_ANGLE` cPlanes work but can't be referenced from a
+   sketch's `sketchPlane` parameter).
+
+### Lessons that differ from the Phase-0 notes
+
+- **Units**: the studio default is **meters** — all sketch coordinates are
+  mm×0.001; depth expressions carry units ("7 mm"). Massproperties volume is
+  reported in m³; per-body volumes are best computed from
+  `tessellatedfaces` (divergence theorem) because `massproperties` only
+  exposes the `-all-` aggregate (sum of body volumes, not union).
+- **Transform feature** (`transformType: ROTATION` needs `transformAxis` =
+  edge/vertex query + `angle`; `TRANSLATION_3D` needs dx/dy/dz quantities) is
+  the workhorse for building on planes you can't sketch on — rotate an
+  extruded slab into the desired orientation instead of sketching on a datum
+  plane.
+- **Delete cascades**: deleting a sketch deletes its dependent features
+  (used to fix a mis-rotated strap: delete sketch → rebuild chain with the
+  corrected flag). `features/updates` requires a `featureId` (creation
+  responses don't return one; the feature tree does, but `GET /features`
+  rate-limits hard — ~7–10 h per 3000 calls).
+- **Free plan**: `POST .../export` (STL/STEP) returns 202 then
+  "Export failed" for **any** studio — server-side export is not available on
+  the account; STL was reconstructed from `tessellatedfaces` instead
+  (`os_export_stl.py` documents the attempt; union via trimesh+manifold3d).
+
+### Verification (OnShape vs FreeCAD reference `hook_hand.py`)
+
+| metric | OnShape | FreeCAD |
+|---|---|---|
+| bbox | 46 × 46 × 50.25 mm | 46 × 46 × 50.75 mm (strap z0 23.5) |
+| strap bbox | x[−1.75,12.75] y[−3.5,3.5] z[23,50.25] | same (±0.5 z offset) |
+| union volume | **20,191 mm³** (watertight manifold union) | **20,219 mm³** |
+
+−28 mm³ (0.14%) = 8-seg arc approximations + missing root/corner fillets —
+within print tolerance. STL: `out/ons/hook_onshape.stl` (vs
+`out/hook_hand/hook.stl`). View live: OnShape UI, doc `HookFinal`.
+
+### Leftovers (user can trash in UI; my API key has no document scope)
+
+- Part studios in the same doc: `bde64379...` (phase-0 probe), `cbec2362...`
+  (first hook attempt), `adae9690...` ("HookFinal2" probe).
+- Feature `FhN0NlGhysDlraB_2` (step pad) and the 40 mm helper ridge are
+  intentionally kept (the ridge edge is referenced by the strap's rotation).
+

@@ -1,0 +1,23 @@
+{
+ "sourceDocumentMicroversion": "6e965b2607f0f31bf80ccc93",
+ "targetDocumentMicroversion": "6e965b2607f0f31bf80ccc93",
+ "ids": [
+  {
+   "target": [],
+   "source": "3900f69364fb4bd5a109.start",
+   "status": "TRANSLATION_ERROR"
+  },
+  {
+   "target": [],
+   "source": "3900f69364fb4bd5a109.end",
+   "status": "TRANSLATION_ERROR"
+  },
+  {
+   "target": [],
+   "source": "3900f69364fb4bd5a109",
+   "status": "TRANSLATION_ERROR"
+  }
+ ],
+ "documentId": "9482dce5e050c68e281c7ba7",
+ "elementId": "cbec2362dfb37d444cf75298"
+}

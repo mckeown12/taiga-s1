@@ -1,0 +1,87 @@
+{
+ "hook_ps": "cbec2362dfb37d444cf75298",
+ "planes": {},
+ "conic_test": {
+  "status": "FAIL",
+  "where": "extrude"
+ },
+ "arc_tests2": {
+  "T2b": null,
+  "T4": null,
+  "T3b": null
+ },
+ "round4": {
+  "T11": {
+   "vol": 0.0,
+   "exp": 858.6283305884593
+  }
+ },
+ "flange": {
+  "sketch": "FJdcGDxvzI8x0LC_0",
+  "pad": "F7wYwWL9QMQ256C_0"
+ },
+ "face_probes": [],
+ "t3_sketch": "FR9g49dWWzHvCAJ_0",
+ "t3_read": "{\"message\": \"Unauthenticated API request\", \"status\": 401}",
+ "b1": "F0BED6sj1fz9Trr_0",
+ "b2": "FlNNGeOHEbB0geF_0",
+ "c1": "FWwpKzHJrSlr4rk_0",
+ "D1_face_only_noconstrfilt": "FDRACV4TXf3ODGh_0",
+ "D2_face_nonconstr": "FDqwofvAhAcwyd3_0",
+ "D3_or3_noconstrfilt": "FTqnxPhYK8LE3nV_0",
+ "D4_none": "FwGkcuTSGZWSU3h_0",
+ "e2": "FZyOm8G6kLjdzEG_0",
+ "e3": "Ffu67jbx9UeFhiA_0",
+ "F1_originY": null,
+ "F2_originZ": null,
+ "F3_geomids": "FW45NX32MOaYbTW_0",
+ "h2": "FvhtxgI7DxlK167_0",
+ "final_ps": "fa03fcc92b16395e6db6ad62",
+ "probe_ps": "adae9690a957a154a606f8a8",
+ "fl_sketch": "F3zYtJJz1Zw32LC_0",
+ "fl_pad": "FIuqqFIm7FcSO5E_0",
+ "holes_sketch": "FASePGeytyF30js_1",
+ "hole_cut": null,
+ "boss_sketch": "FMoxfmVwfSAXd84_1",
+ "boss_pad": "FKITg2AN9JX2bFo_1",
+ "step_sketch": "F3DNswFgIhoSUvj_2",
+ "root_step": "FhN0NlGhysDlraB_2",
+ "strap_plane": "FjSBIb2vgXfrCzg_4",
+ "strap_plane_ids": [
+  "KHVC",
+  "KHlE"
+ ],
+ "probes": {
+  "JDD": null,
+  "JDE": null
+ },
+ "ridge_sketch": "FKae7yUlqkEizg9_3",
+ "ridge_pad": "FE7hp5k8Cy2jtEJ_3",
+ "ridge_edge_pos": "JQl",
+ "ridge_edge_neg": "JQV",
+ "vert_plane_A": "FMaYRZpzbm88w91_4",
+ "vert_plane_A_id": "FMaYRZpzbm88w91_4",
+ "y0_edge": "JQl",
+ "origin_hits": [],
+ "strap_sketch": "Fxnm9Jx3RNncDif_4",
+ "strap_extrude": null,
+ "strap_body": "JVD",
+ "strap_plane_deleted": true,
+ "verification": {
+  "onshape_union_mm3": 20191,
+  "freecad_ref_mm3": 20219,
+  "bbox_onshape": [
+   46,
+   46,
+   50.25
+  ],
+  "bbox_freecad": [
+   46,
+   46,
+   50.75
+  ],
+  "watertight": true,
+  "stl": "out/ons/hook_onshape.stl",
+  "free_plan_export": "blocked server-side (202 -> Export failed); STL reconstructed from tessellatedfaces"
+ }
+}
